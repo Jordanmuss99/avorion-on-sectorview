@@ -1,0 +1,125 @@
+# ========== C:/Users/WIN 10/AppData/Roaming/Avorion/mods/Sector Overview/data/scripts/entity/sectoroverview.lua ==========
+#: C:/Users/WIN 10/AppData/Roaming/Avorion/mods/Sector Overview/data/scripts/entity/sectoroverview.lua:
+#: C:/Users/WIN 10/AppData/Roaming/Avorion/mods/Sector Overview/data/scripts/player/ui/sectorshipoverview.lua:
+msgid "Sector Overview"
+msgstr ""
+
+
+# ========== C:/Users/WIN 10/AppData/Roaming/Avorion/mods/Sector Overview/data/scripts/player/ui/sectorshipoverview.lua ==========
+#: C:/Users/WIN 10/AppData/Roaming/Avorion/mods/Sector Overview/data/scripts/player/ui/sectorshipoverview.lua:
+msgid "Divide"
+msgstr ""
+
+#: C:/Users/WIN 10/AppData/Roaming/Avorion/mods/Sector Overview/data/scripts/player/ui/sectorshipoverview.lua:
+msgid "Multiply"
+msgstr ""
+
+#: C:/Users/WIN 10/AppData/Roaming/Avorion/mods/Sector Overview/data/scripts/player/ui/sectorshipoverview.lua:
+msgid "Minus"
+msgstr ""
+
+#: C:/Users/WIN 10/AppData/Roaming/Avorion/mods/Sector Overview/data/scripts/player/ui/sectorshipoverview.lua:
+msgid "Plus"
+msgstr ""
+
+#: C:/Users/WIN 10/AppData/Roaming/Avorion/mods/Sector Overview/data/scripts/player/ui/sectorshipoverview.lua:
+msgid "Station List"
+msgstr ""
+
+#: C:/Users/WIN 10/AppData/Roaming/Avorion/mods/Sector Overview/data/scripts/player/ui/sectorshipoverview.lua:
+msgid "Station List"
+msgstr ""
+
+#: C:/Users/WIN 10/AppData/Roaming/Avorion/mods/Sector Overview/data/scripts/player/ui/sectorshipoverview.lua:
+msgid "Ship List"
+msgstr ""
+
+#: C:/Users/WIN 10/AppData/Roaming/Avorion/mods/Sector Overview/data/scripts/player/ui/sectorshipoverview.lua:
+msgid "Ship List"
+msgstr ""
+
+#: C:/Users/WIN 10/AppData/Roaming/Avorion/mods/Sector Overview/data/scripts/player/ui/sectorshipoverview.lua:
+msgid "Gate & Wormhole List"
+msgstr ""
+
+#: C:/Users/WIN 10/AppData/Roaming/Avorion/mods/Sector Overview/data/scripts/player/ui/sectorshipoverview.lua:
+msgid "Gate & Wormhole List"
+msgstr ""
+
+#: C:/Users/WIN 10/AppData/Roaming/Avorion/mods/Sector Overview/data/scripts/player/ui/sectorshipoverview.lua:
+msgid "Player List"
+msgstr ""
+
+#: C:/Users/WIN 10/AppData/Roaming/Avorion/mods/Sector Overview/data/scripts/player/ui/sectorshipoverview.lua:
+msgid "Player List"
+msgstr ""
+
+#: C:/Users/WIN 10/AppData/Roaming/Avorion/mods/Sector Overview/data/scripts/player/ui/sectorshipoverview.lua:
+msgid "Show on Galaxy Map"
+msgstr ""
+
+#: C:/Users/WIN 10/AppData/Roaming/Avorion/mods/Sector Overview/data/scripts/player/ui/sectorshipoverview.lua:
+msgid "Add"
+msgstr ""
+
+#: C:/Users/WIN 10/AppData/Roaming/Avorion/mods/Sector Overview/data/scripts/player/ui/sectorshipoverview.lua:
+msgid "Add the selected player from the combo box to the list of tracked players."
+msgstr ""
+
+#: C:/Users/WIN 10/AppData/Roaming/Avorion/mods/Sector Overview/data/scripts/player/ui/sectorshipoverview.lua:
+msgid "Remove the selected player from the list of tracked players."
+msgstr ""
+
+#: C:/Users/WIN 10/AppData/Roaming/Avorion/mods/Sector Overview/data/scripts/player/ui/sectorshipoverview.lua:
+msgid "Open window (numpad)"
+msgstr ""
+
+#: C:/Users/WIN 10/AppData/Roaming/Avorion/mods/Sector Overview/data/scripts/player/ui/sectorshipoverview.lua:
+msgid "Prev. tab (numpad)"
+msgstr ""
+
+#: C:/Users/WIN 10/AppData/Roaming/Avorion/mods/Sector Overview/data/scripts/player/ui/sectorshipoverview.lua:
+msgid "Next tab (numpad)"
+msgstr ""
+
+#: C:/Users/WIN 10/AppData/Roaming/Avorion/mods/Sector Overview/data/scripts/player/ui/sectorshipoverview.lua:
+msgid "Window width"
+msgstr ""
+
+#: C:/Users/WIN 10/AppData/Roaming/Avorion/mods/Sector Overview/data/scripts/player/ui/sectorshipoverview.lua:
+msgid "Window height"
+msgstr ""
+
+#: C:/Users/WIN 10/AppData/Roaming/Avorion/mods/Sector Overview/data/scripts/player/ui/sectorshipoverview.lua:
+msgid "Notify - enemy players"
+msgstr ""
+
+#: C:/Users/WIN 10/AppData/Roaming/Avorion/mods/Sector Overview/data/scripts/player/ui/sectorshipoverview.lua:
+msgid "Show NPC names"
+msgstr ""
+
+#: C:/Users/WIN 10/AppData/Roaming/Avorion/mods/Sector Overview/data/scripts/player/ui/sectorshipoverview.lua:
+msgid "Detected enemy ship '%s' (%s) in the sector!"
+msgstr ""
+
+#: C:/Users/WIN 10/AppData/Roaming/Avorion/mods/Sector Overview/data/scripts/player/ui/sectorshipoverview.lua:
+msgid "Not owned"
+msgstr ""
+
+#: C:/Users/WIN 10/AppData/Roaming/Avorion/mods/Sector Overview/data/scripts/player/ui/sectorshipoverview.lua:
+msgid "Server doesn't allow to track players."
+msgstr ""
+
+#: C:/Users/WIN 10/AppData/Roaming/Avorion/mods/Sector Overview/data/scripts/player/ui/sectorshipoverview.lua:
+msgid "Can't get coordinates, %s doesn't exist."
+msgstr ""
+
+#: C:/Users/WIN 10/AppData/Roaming/Avorion/mods/Sector Overview/data/scripts/player/ui/sectorshipoverview.lua:
+msgid "Colors of the object icons indicate ownership type:\n* Green - yours.\n* Purple - your alliance.\n* Yellow - other player.\n* Blue - other alliance.\n* White - NPC.\n\nObject name color represents relation status (war, ceasefire, neutral, allies)"
+msgstr ""
+
+#: C:/Users/WIN 10/AppData/Roaming/Avorion/mods/Sector Overview/data/scripts/player/ui/sectorshipoverview.lua:
+msgid "Show the selected player on the galaxy map."
+msgstr ""
+
+

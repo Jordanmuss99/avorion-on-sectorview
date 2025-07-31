@@ -1,0 +1,125 @@
+# ========== C:/Users/WIN 10/AppData/Roaming/Avorion/mods/Sector Overview/data/scripts/entity/sectoroverview.lua ==========
+#: C:/Users/WIN 10/AppData/Roaming/Avorion/mods/Sector Overview/data/scripts/entity/sectoroverview.lua:
+#: C:/Users/WIN 10/AppData/Roaming/Avorion/mods/Sector Overview/data/scripts/player/ui/sectorshipoverview.lua:
+msgid "Sector Overview"
+msgstr "Обзор сектора"
+
+
+# ========== C:/Users/WIN 10/AppData/Roaming/Avorion/mods/Sector Overview/data/scripts/player/ui/sectorshipoverview.lua ==========
+#: C:/Users/WIN 10/AppData/Roaming/Avorion/mods/Sector Overview/data/scripts/player/ui/sectorshipoverview.lua:
+msgid "Divide"
+msgstr "Деление"
+
+#: C:/Users/WIN 10/AppData/Roaming/Avorion/mods/Sector Overview/data/scripts/player/ui/sectorshipoverview.lua:
+msgid "Multiply"
+msgstr "Умножение"
+
+#: C:/Users/WIN 10/AppData/Roaming/Avorion/mods/Sector Overview/data/scripts/player/ui/sectorshipoverview.lua:
+msgid "Minus"
+msgstr "Минус"
+
+#: C:/Users/WIN 10/AppData/Roaming/Avorion/mods/Sector Overview/data/scripts/player/ui/sectorshipoverview.lua:
+msgid "Plus"
+msgstr "Плюс"
+
+#: C:/Users/WIN 10/AppData/Roaming/Avorion/mods/Sector Overview/data/scripts/player/ui/sectorshipoverview.lua:
+msgid "Station List"
+msgstr "Список станций"
+
+#: C:/Users/WIN 10/AppData/Roaming/Avorion/mods/Sector Overview/data/scripts/player/ui/sectorshipoverview.lua:
+msgid "Station List"
+msgstr "Список станций"
+
+#: C:/Users/WIN 10/AppData/Roaming/Avorion/mods/Sector Overview/data/scripts/player/ui/sectorshipoverview.lua:
+msgid "Ship List"
+msgstr "Список кораблей"
+
+#: C:/Users/WIN 10/AppData/Roaming/Avorion/mods/Sector Overview/data/scripts/player/ui/sectorshipoverview.lua:
+msgid "Ship List"
+msgstr "Список кораблей"
+
+#: C:/Users/WIN 10/AppData/Roaming/Avorion/mods/Sector Overview/data/scripts/player/ui/sectorshipoverview.lua:
+msgid "Gate & Wormhole List"
+msgstr "Список врат и червоточин"
+
+#: C:/Users/WIN 10/AppData/Roaming/Avorion/mods/Sector Overview/data/scripts/player/ui/sectorshipoverview.lua:
+msgid "Gate & Wormhole List"
+msgstr "Список врат и червоточин"
+
+#: C:/Users/WIN 10/AppData/Roaming/Avorion/mods/Sector Overview/data/scripts/player/ui/sectorshipoverview.lua:
+msgid "Player List"
+msgstr "Список игроков"
+
+#: C:/Users/WIN 10/AppData/Roaming/Avorion/mods/Sector Overview/data/scripts/player/ui/sectorshipoverview.lua:
+msgid "Player List"
+msgstr "Список игроков"
+
+#: C:/Users/WIN 10/AppData/Roaming/Avorion/mods/Sector Overview/data/scripts/player/ui/sectorshipoverview.lua:
+msgid "Show on Galaxy Map"
+msgstr "Показать на карте"
+
+#: C:/Users/WIN 10/AppData/Roaming/Avorion/mods/Sector Overview/data/scripts/player/ui/sectorshipoverview.lua:
+msgid "Add"
+msgstr "Добавить"
+
+#: C:/Users/WIN 10/AppData/Roaming/Avorion/mods/Sector Overview/data/scripts/player/ui/sectorshipoverview.lua:
+msgid "Add the selected player from the combo box to the list of tracked players."
+msgstr "Добавить выбранного игрока из выпадающего меню в список отслеживаемых игроков."
+
+#: C:/Users/WIN 10/AppData/Roaming/Avorion/mods/Sector Overview/data/scripts/player/ui/sectorshipoverview.lua:
+msgid "Remove the selected player from the list of tracked players."
+msgstr "Убрать выбранного игрока из списка отслеживаемых игроков."
+
+#: C:/Users/WIN 10/AppData/Roaming/Avorion/mods/Sector Overview/data/scripts/player/ui/sectorshipoverview.lua:
+msgid "Open window (numpad)"
+msgstr "Открыть окно (numpad)"
+
+#: C:/Users/WIN 10/AppData/Roaming/Avorion/mods/Sector Overview/data/scripts/player/ui/sectorshipoverview.lua:
+msgid "Prev. tab (numpad)"
+msgstr "Пред. вкладка (numpad)"
+
+#: C:/Users/WIN 10/AppData/Roaming/Avorion/mods/Sector Overview/data/scripts/player/ui/sectorshipoverview.lua:
+msgid "Next tab (numpad)"
+msgstr "След. вкладка (numpad)"
+
+#: C:/Users/WIN 10/AppData/Roaming/Avorion/mods/Sector Overview/data/scripts/player/ui/sectorshipoverview.lua:
+msgid "Window width"
+msgstr "Ширина окна"
+
+#: C:/Users/WIN 10/AppData/Roaming/Avorion/mods/Sector Overview/data/scripts/player/ui/sectorshipoverview.lua:
+msgid "Window height"
+msgstr "Высота окна"
+
+#: C:/Users/WIN 10/AppData/Roaming/Avorion/mods/Sector Overview/data/scripts/player/ui/sectorshipoverview.lua:
+msgid "Notify - enemy players"
+msgstr "Уведомлять - вражеские игроки"
+
+#: C:/Users/WIN 10/AppData/Roaming/Avorion/mods/Sector Overview/data/scripts/player/ui/sectorshipoverview.lua:
+msgid "Show NPC names"
+msgstr "Показывать имена НПС"
+
+#: C:/Users/WIN 10/AppData/Roaming/Avorion/mods/Sector Overview/data/scripts/player/ui/sectorshipoverview.lua:
+msgid "Detected enemy ship '%s' (%s) in the sector!"
+msgstr "Обнаружен вражеский корабль '%s' (%s) в секторе!"
+
+#: C:/Users/WIN 10/AppData/Roaming/Avorion/mods/Sector Overview/data/scripts/player/ui/sectorshipoverview.lua:
+msgid "Not owned"
+msgstr "Нет владельца"
+
+#: C:/Users/WIN 10/AppData/Roaming/Avorion/mods/Sector Overview/data/scripts/player/ui/sectorshipoverview.lua:
+msgid "Server doesn't allow to track players."
+msgstr "Сервер не разрешает отслеживать игроков."
+
+#: C:/Users/WIN 10/AppData/Roaming/Avorion/mods/Sector Overview/data/scripts/player/ui/sectorshipoverview.lua:
+msgid "Can't get coordinates, %s doesn't exist."
+msgstr "Не удается получить координаты, %s не существует."
+
+#: C:/Users/WIN 10/AppData/Roaming/Avorion/mods/Sector Overview/data/scripts/player/ui/sectorshipoverview.lua:
+msgid "Colors of the object icons indicate ownership type:\n* Green - yours.\n* Purple - your alliance.\n* Yellow - other player.\n* Blue - other alliance.\n* White - NPC.\n\nObject name color represents relation status (war, ceasefire, neutral, allies)"
+msgstr "Цвета иконок объектов указывают на тип владельца:\n* Зеленый - ваше.\n* Фиолетовый - вашего альянса.\n* Желтый - другого игрока.\n* Синий - другого альянса.\n* Белый - НПС.\n\nЦвет имени объекта указывает на статус отношений (война, перемирие, нейтральное, союз)"
+
+#: C:/Users/WIN 10/AppData/Roaming/Avorion/mods/Sector Overview/data/scripts/player/ui/sectorshipoverview.lua:
+msgid "Show the selected player on the galaxy map."
+msgstr "Показать выбранного игрока на карте галактики."
+
+
