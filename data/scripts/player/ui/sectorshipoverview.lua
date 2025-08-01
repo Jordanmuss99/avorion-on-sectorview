@@ -213,9 +213,9 @@ Object name color represents relation status (war, ceasefire, neutral, allies)]]
     sectorOverview_showNPCNamesCheckBox:setCheckedNoCallback(SectorOverviewConfig.ShowNPCNames)
 
     -- Content sizing controls
-    rect = lister:placeCenter(vec2(lister.inner.width, 30)) 
-    splitter = UIVerticalSplitter(rect, 10, 0, 0.75) -- 
-    label = scrollFrame:createLabel(splitter.left.lower, "Icon column width"%_t, 16)
+    rect = lister:placeCenter(vec2(lister.inner.width, 30))
+    splitter = UIVerticalSplitter(rect, 10, 0, 0.5)
+    label = scrollFrame:createLabel(splitter.left, "Icon column width"%_t, 16)
     label:setLeftAligned()
     sectorOverview_iconColumnWidthBox = scrollFrame:createTextBox(splitter.right, "")
     sectorOverview_iconColumnWidthBox.allowedCharacters = "0123456789"
@@ -224,6 +224,7 @@ Object name color represents relation status (war, ceasefire, neutral, allies)]]
 
     rect = lister:placeCenter(vec2(lister.inner.width, 30))
     splitter = UIVerticalSplitter(rect, 10, 0, 0.75)
+    splitter = UIVerticalSplitter(rect, 10, 0, 0.5)
     label = scrollFrame:createLabel(splitter.left, "Row height"%_t, 16)
     label:setLeftAligned()
     sectorOverview_rowHeightBox = scrollFrame:createTextBox(splitter.right, "")
@@ -233,6 +234,7 @@ Object name color represents relation status (war, ceasefire, neutral, allies)]]
 
     rect = lister:placeCenter(vec2(lister.inner.width, 30))
     splitter = UIVerticalSplitter(rect, 10, 0, 0.75) 
+    splitter = UIVerticalSplitter(rect, 10, 0, 0.5)
     label = scrollFrame:createLabel(splitter.left, "Icons per row"%_t, 16)
     label:setLeftAligned()
     sectorOverview_iconsPerRowBox = scrollFrame:createTextBox(splitter.right, "")
@@ -562,6 +564,7 @@ function SectorShipOverview.refreshList() -- overridden
         end
         sort(entities)
         local selectedValue = sectorOverview_stationList.selectedValue
+        local scrollPosition = sectorOverview_stationList.scrollPosition
         sectorOverview_stationList:clear()
         for _, pair in ipairs(entities) do
             local entryColor
@@ -596,6 +599,7 @@ function SectorShipOverview.refreshList() -- overridden
             sectorOverview_stationList:setEntryType(1, sectorOverview_stationList.rows - 1, 3)
         end
         sectorOverview_stationList:selectValueNoCallback(selectedValue)
+        sectorOverview_stationList.scrollPosition = scrollPosition
 
     elseif sectorOverview_shipTab.isActiveTab then -- ships
 
@@ -619,6 +623,7 @@ function SectorShipOverview.refreshList() -- overridden
         end
         sort(entities)
         local selectedValue = sectorOverview_shipList.selectedValue
+        local scrollPosition = sectorOverview_shipList.scrollPosition
         sectorOverview_shipList:clear()
         for _, pair in ipairs(entities) do
             local entryColor
@@ -655,6 +660,7 @@ function SectorShipOverview.refreshList() -- overridden
             sectorOverview_shipList:setEntryType(1, sectorOverview_shipList.rows - 1, 3)
         end
         sectorOverview_shipList:selectValueNoCallback(selectedValue)
+        sectorOverview_shipList.scrollPosition = scrollPosition
 
     elseif sectorOverview_gateTab.isActiveTab then -- gates
 
@@ -668,6 +674,7 @@ function SectorShipOverview.refreshList() -- overridden
         end
         sort(entities)
         local selectedValue = sectorOverview_gateList.selectedValue
+        local scrollPosition = sectorOverview_gateList.scrollPosition
         sectorOverview_gateList:clear()
         for _, pair in ipairs(entities) do
             local icon = ""
@@ -693,6 +700,7 @@ function SectorShipOverview.refreshList() -- overridden
             sectorOverview_gateList:setEntryType(0, sectorOverview_gateList.rows - 1, 3)
         end
         sectorOverview_gateList:selectValueNoCallback(selectedValue)
+        sectorOverview_gateList.scrollPosition = scrollPosition
 
     end
 end
@@ -857,6 +865,7 @@ function SectorShipOverview.sectorOverview_refreshGoodsList()
     local stationList = lists[1]
     local player = Player()
     
+    local scrollPosition = sectorOverview_goodsList.scrollPosition
     sectorOverview_goodsList:clear()
     
     local white = ColorRGB(1, 1, 1)
@@ -939,6 +948,7 @@ function SectorShipOverview.sectorOverview_refreshGoodsList()
     if player.selectedObject then
         sectorOverview_goodsList:selectValueNoCallback(player.selectedObject.string)
     end
+    sectorOverview_goodsList.scrollPosition = scrollPosition
 end
 
 function SectorShipOverview.sectorOverview_refreshCrewList()
@@ -948,6 +958,7 @@ function SectorShipOverview.sectorOverview_refreshCrewList()
     local stationList = lists[1]
     local player = Player()
     
+    local scrollPosition = sectorOverview_crewList.scrollPosition
     sectorOverview_crewList:clear()
     
     local white = ColorRGB(1, 1, 1)
@@ -1041,6 +1052,7 @@ function SectorShipOverview.sectorOverview_refreshCrewList()
     if player.selectedObject then
         sectorOverview_crewList:selectValueNoCallback(player.selectedObject.string)
     end
+    sectorOverview_crewList.scrollPosition = scrollPosition
 end
 
 function SectorShipOverview.sectorOverview_refreshMissionList()
@@ -1055,6 +1067,7 @@ function SectorShipOverview.sectorOverview_refreshMissionList()
     
     print("DEBUG: Mission refresh - Found " .. #stationList.entries .. " stations")
     
+    local scrollPosition = sectorOverview_missionList.scrollPosition
     sectorOverview_missionList:clear()
     
     local white = ColorRGB(1, 1, 1)
@@ -1129,6 +1142,7 @@ function SectorShipOverview.sectorOverview_refreshMissionList()
     if player.selectedObject then
         sectorOverview_missionList:selectValueNoCallback(player.selectedObject.string)
     end
+    sectorOverview_missionList.scrollPosition = scrollPosition
 end
 
 function SectorShipOverview.sectorOverview_onShowPlayerPressed()
