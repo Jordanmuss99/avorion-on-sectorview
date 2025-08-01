@@ -223,7 +223,6 @@ Object name color represents relation status (war, ceasefire, neutral, allies)]]
     sectorOverview_iconColumnWidthBox.onTextChangedFunction = "sectorOverview_onSettingsModified"
 
     rect = lister:placeCenter(vec2(lister.inner.width, 30))
-    splitter = UIVerticalSplitter(rect, 10, 0, 0.75)
     splitter = UIVerticalSplitter(rect, 10, 0, 0.5)
     label = scrollFrame:createLabel(splitter.left, "Row height"%_t, 16)
     label:setLeftAligned()
@@ -233,7 +232,6 @@ Object name color represents relation status (war, ceasefire, neutral, allies)]]
     sectorOverview_rowHeightBox.onTextChangedFunction = "sectorOverview_onSettingsModified"
 
     rect = lister:placeCenter(vec2(lister.inner.width, 30))
-    splitter = UIVerticalSplitter(rect, 10, 0, 0.75) 
     splitter = UIVerticalSplitter(rect, 10, 0, 0.5)
     label = scrollFrame:createLabel(splitter.left, "Icons per row"%_t, 16)
     label:setLeftAligned()
