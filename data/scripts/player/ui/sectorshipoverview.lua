@@ -132,7 +132,7 @@ Object name color represents relation status (war, ceasefire, neutral, allies)]]
     sectorOverview_gateList.onSelectFunction = "onEntrySelected"
 
     -- players
-    sectorOverview_playerTab = sectorOverview_tabbedWindow:createTab("Player List"%_t, "data/textures/icons/crew.png", "Player List"%_t)
+    sectorOverview_playerTab = sectorOverview_tabbedWindow:createTab("Player List"%_t, "data/textures/icons/sectoroverview/playerfind.png", "Player List"%_t)
     sectorOverview_playerTab.onSelectedFunction = "sectorOverview_onPlayerTabSelected"
 
     local hsplit = UIHorizontalProportionalSplitter(Rect(sectorOverview_playerTab.size), 10, 0, {30, 0.5, 25, 35})
