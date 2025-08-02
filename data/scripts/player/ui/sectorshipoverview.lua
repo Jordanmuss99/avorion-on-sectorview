@@ -260,51 +260,48 @@ Object name color represents relation status (war, ceasefire, neutral, allies)]]
     local button = tab:createButton(hsplit[2], "Reset"%_t, "sectorOverview_onResetBtnPressed")
     button.maxTextSize = 16
 
-    -- Conditionally create additional tabs using CustomTabbedWindow
-    if SectorOverviewConfig.ShowGoodsTab then
-        sectorOverview_goodsTab = sectorOverview_tabbedWindow:createTab("Goods"%_t, "data/textures/icons/procure-command.png", "Goods"%_t)
-        local hsplit = UIHorizontalSplitter(Rect(sectorOverview_goodsTab.size), 0, 0, 0.045)
-        local vsplit = UIVerticalSplitter(hsplit.top, 0, 0, 0.5)
-        local supplyLabel = sectorOverview_goodsTab:createLabel(vsplit.left, "[SUPPLY]"%_t, 12)
-        supplyLabel:setTopAligned()
-        local demandLabel = sectorOverview_goodsTab:createLabel(vsplit.right, "[DEMAND]"%_t, 12)
-        demandLabel:setTopAligned()
-        
-        sectorOverview_goodsList = sectorOverview_goodsTab:createListBoxEx(hsplit.bottom)
-        local numColumns = (self.iconsPerRow or 11) + 2
-        sectorOverview_goodsList.columns = numColumns
-        sectorOverview_goodsList.rowHeight = self.rowHeight or 25
-        for i = 1, numColumns do
-            sectorOverview_goodsList:setColumnWidth(0, self.iconColumnWidth or 25)
-        end
-        sectorOverview_goodsList.onSelectFunction = "onEntrySelected"
-    end
+    -- Create all additional tabs (always create, show/hide based on settings)
+    sectorOverview_goodsTab = sectorOverview_tabbedWindow:createTab("Goods"%_t, "data/textures/icons/procure-command.png", "Goods"%_t)
+    local hsplit = UIHorizontalSplitter(Rect(sectorOverview_goodsTab.size), 0, 0, 0.045)
+    local vsplit = UIVerticalSplitter(hsplit.top, 0, 0, 0.5)
+    local supplyLabel = sectorOverview_goodsTab:createLabel(vsplit.left, "[SUPPLY]"%_t, 12)
+    supplyLabel:setTopAligned()
+    local demandLabel = sectorOverview_goodsTab:createLabel(vsplit.right, "[DEMAND]"%_t, 12)
+    demandLabel:setTopAligned()
     
-    if SectorOverviewConfig.ShowCrewTab then
-        sectorOverview_crewTab = sectorOverview_tabbedWindow:createTab("Crew"%_t, "data/textures/icons/crew.png", "Crew"%_t)
-        local hsplit = UIHorizontalSplitter(Rect(sectorOverview_crewTab.size), 0, 0, 0.0)
-        sectorOverview_crewList = sectorOverview_crewTab:createListBoxEx(hsplit.bottom)
-        local numColumns = (self.iconsPerRow or 11) + 2
-        sectorOverview_crewList.columns = numColumns
-        sectorOverview_crewList.rowHeight = self.rowHeight or 25
-        for i = 1, numColumns do
-            sectorOverview_crewList:setColumnWidth(0, self.iconColumnWidth or 25)
-        end
-        sectorOverview_crewList.onSelectFunction = "onEntrySelected"
+    sectorOverview_goodsList = sectorOverview_goodsTab:createListBoxEx(hsplit.bottom)
+    local numColumns = (SectorOverviewConfig.IconsPerRow or 11) + 2
+    sectorOverview_goodsList.columns = numColumns
+    sectorOverview_goodsList.rowHeight = SectorOverviewConfig.RowHeight or 25
+    for i = 1, numColumns do
+        sectorOverview_goodsList:setColumnWidth(0, SectorOverviewConfig.IconColumnWidth or 25)
     end
+    sectorOverview_goodsList.onSelectFunction = "onEntrySelected"
     
-    if SectorOverviewConfig.ShowBulletinBoardsTab then
-        sectorOverview_missionTab = sectorOverview_tabbedWindow:createTab("Bulletin Boards"%_t, "data/textures/icons/wormhole.png", "Bulletin Boards"%_t)
-        local hsplit = UIHorizontalSplitter(Rect(sectorOverview_missionTab.size), 0, 0, 0.0)
-        sectorOverview_missionList = sectorOverview_missionTab:createListBoxEx(hsplit.bottom)
-        local numColumns = (self.iconsPerRow or 11) + 2
-        sectorOverview_missionList.columns = numColumns
-        sectorOverview_missionList.rowHeight = self.rowHeight or 25
-        for i = 1, numColumns do
-            sectorOverview_missionList:setColumnWidth(0, self.iconColumnWidth or 25)
-        end
-        sectorOverview_missionList.onSelectFunction = "onEntrySelected"
+    sectorOverview_crewTab = sectorOverview_tabbedWindow:createTab("Crew"%_t, "data/textures/icons/crew.png", "Crew"%_t)
+    local hsplit = UIHorizontalSplitter(Rect(sectorOverview_crewTab.size), 0, 0, 0.0)
+    sectorOverview_crewList = sectorOverview_crewTab:createListBoxEx(hsplit.bottom)
+    local numColumns = (SectorOverviewConfig.IconsPerRow or 11) + 2
+    sectorOverview_crewList.columns = numColumns
+    sectorOverview_crewList.rowHeight = SectorOverviewConfig.RowHeight or 25
+    for i = 1, numColumns do
+        sectorOverview_crewList:setColumnWidth(0, SectorOverviewConfig.IconColumnWidth or 25)
     end
+    sectorOverview_crewList.onSelectFunction = "onEntrySelected"
+    
+    sectorOverview_missionTab = sectorOverview_tabbedWindow:createTab("Bulletin Boards"%_t, "data/textures/icons/wormhole.png", "Bulletin Boards"%_t)
+    local hsplit = UIHorizontalSplitter(Rect(sectorOverview_missionTab.size), 0, 0, 0.0)
+    sectorOverview_missionList = sectorOverview_missionTab:createListBoxEx(hsplit.bottom)
+    local numColumns = (SectorOverviewConfig.IconsPerRow or 11) + 2
+    sectorOverview_missionList.columns = numColumns
+    sectorOverview_missionList.rowHeight = SectorOverviewConfig.RowHeight or 25
+    for i = 1, numColumns do
+        sectorOverview_missionList:setColumnWidth(0, SectorOverviewConfig.IconColumnWidth or 25)
+    end
+    sectorOverview_missionList.onSelectFunction = "onEntrySelected"
+
+    -- Apply initial visibility based on config
+    self.sectorOverview_updateTabVisibility()
 
     -- callbacks
     Player():registerCallback("onStateChanged", "onPlayerStateChanged")
@@ -332,6 +329,29 @@ Object name color represents relation status (war, ceasefire, neutral, allies)]]
 
     invokeServerFunction("sectorOverview_sendServerConfig")
     invokeServerFunction("sectorOverview_setNotifyAboutEnemies", SectorOverviewConfig.NotifyAboutEnemies)
+end
+
+function SectorShipOverview.sectorOverview_updateTabVisibility()
+    if not sectorOverview_tabbedWindow then return end
+    
+    -- Show/hide tabs based on current config
+    if SectorOverviewConfig.ShowGoodsTab then
+        sectorOverview_tabbedWindow:activateTab(sectorOverview_goodsTab)
+    else
+        sectorOverview_tabbedWindow:deactivateTab(sectorOverview_goodsTab)
+    end
+    
+    if SectorOverviewConfig.ShowCrewTab then
+        sectorOverview_tabbedWindow:activateTab(sectorOverview_crewTab)
+    else
+        sectorOverview_tabbedWindow:deactivateTab(sectorOverview_crewTab)
+    end
+    
+    if SectorOverviewConfig.ShowBulletinBoardsTab then
+        sectorOverview_tabbedWindow:activateTab(sectorOverview_missionTab)
+    else
+        sectorOverview_tabbedWindow:deactivateTab(sectorOverview_missionTab)
+    end
 end
 
 function SectorShipOverview.getUpdateInterval() -- overridden
@@ -449,6 +469,9 @@ function SectorShipOverview.updateClient(timeStep) -- overridden
 
             -- Apply window resize when settings change
             self.updateWindowSize()
+            
+            -- Update tab visibility when settings change
+            self.sectorOverview_updateTabVisibility()
 
             invokeServerFunction("sectorOverview_setNotifyAboutEnemies", SectorOverviewConfig.NotifyAboutEnemies)
         end
@@ -963,6 +986,7 @@ function SectorShipOverview.sectorOverview_refreshCrewList()
     local renderer = UIRenderer()
     
     local simplifiedIcons = {}
+    simplifiedIcons[CaptainUtility.ClassType.None] = {path = "data/textures/icons/captain-noclass.png", color = ColorRGB(0.7, 0.7, 0.7)}
     simplifiedIcons[CaptainUtility.ClassType.Commodore] = {path = "data/textures/icons/captain-commodore.png", color = ColorRGB(0, 0.74, 0.74)}
     simplifiedIcons[CaptainUtility.ClassType.Smuggler] = {path = "data/textures/icons/captain-smuggler.png", color = ColorRGB(0.78, 0.03, 0.75)}
     simplifiedIcons[CaptainUtility.ClassType.Merchant] = {path = "data/textures/icons/captain-merchant.png", color = ColorRGB(0.5, 0.8, 0)}
@@ -972,7 +996,12 @@ function SectorShipOverview.sectorOverview_refreshCrewList()
     simplifiedIcons[CaptainUtility.ClassType.Daredevil] = {path = "data/textures/icons/captain-daredevil.png", color = ColorRGB(0.9, 0.1, 0.1)}
     simplifiedIcons[CaptainUtility.ClassType.Scientist] = {path = "data/textures/icons/captain-scientist.png", color = ColorRGB(1, 0.47, 0)}
     simplifiedIcons[CaptainUtility.ClassType.Hunter] = {path = "data/textures/icons/captain-hunter.png", color = ColorRGB(1, 0.43, 0.77)}
-    
+    simplifiedIcons[CaptainUtility.ClassType.SquadLeader] = {path = "data/textures/icons/captain.png", color = ColorRGB(0.85, 0.6, 0.1)}
+    simplifiedIcons[CaptainUtility.ClassType.ShieldMaster] = {path = "data/textures/icons/captain.png", color = ColorRGB(0.4, 0.4, 1.0)}
+    simplifiedIcons[CaptainUtility.ClassType.AICaptain] = {path = "data/textures/icons/captain.png", color = ColorRGB(0.0, 0.5, 1.0)}
+    simplifiedIcons[CaptainUtility.ClassType.LimitBreaker] = {path = "data/textures/icons/captain.png", color = ColorRGB(0.8, 0.3, 0.3)}
+    simplifiedIcons[CaptainUtility.ClassType.StarSurfer] = {path = "data/textures/icons/captain.png", color = ColorRGB(0.7, 0.3, 0.7)}
+    simplifiedIcons[CaptainUtility.ClassType.LootGoblin] = {path = "data/textures/icons/captain.png", color = ColorRGB(0.1, 0.8, 0.1)}
     local classProperties = CaptainUtility.ClassProperties()
     
     for _, entry in pairs(stationList.entries) do
@@ -989,17 +1018,28 @@ function SectorShipOverview.sectorOverview_refreshCrewList()
         local captainTooltip = ""
         
         if captain then
-            if captain.primaryClass == 0 then
-                table.insert(captainIcons, {path = "data/textures/icons/captain-noclass.png", color = ColorRGB(1, 1, 1)})
-                captainTooltip = "Captain [no class"%_t
+            -- Handle primary class
+            local primaryIcon = simplifiedIcons[captain.primaryClass]
+            if primaryIcon then
+                table.insert(captainIcons, primaryIcon)
+                if captain.primaryClass == 0 then
+                    captainTooltip = "Captain [no class"%_t
+                else
+                    captainTooltip = "Captain ["%_t .. classProperties[captain.primaryClass].displayName % _t
+                end
             else
-                table.insert(captainIcons, simplifiedIcons[captain.primaryClass])
-                captainTooltip = "Captain ["%_t .. classProperties[captain.primaryClass].displayName % _t
+                -- Fallback for unknown captain class
+                table.insert(captainIcons, {path = "data/textures/icons/captain-noclass.png", color = ColorRGB(1, 1, 1)})
+                captainTooltip = "Captain [unknown class"%_t
             end
             
+            -- Handle secondary class
             if captain.secondaryClass and captain.secondaryClass ~= 0 then
-                table.insert(captainIcons, simplifiedIcons[captain.secondaryClass])
-                captainTooltip = captainTooltip .. ", " .. classProperties[captain.secondaryClass].displayName % _t
+                local secondaryIcon = simplifiedIcons[captain.secondaryClass]
+                if secondaryIcon then
+                    table.insert(captainIcons, secondaryIcon)
+                    captainTooltip = captainTooltip .. ", " .. classProperties[captain.secondaryClass].displayName % _t
+                end
             end
             
             captainTooltip = captainTooltip .. "]"
@@ -1230,6 +1270,9 @@ function SectorShipOverview.sectorOverview_onResetBtnPressed()
 
     -- Apply window resize after reset
     self.updateWindowSize()
+    
+    -- Update tab visibility after reset
+    self.sectorOverview_updateTabVisibility()
 
     invokeServerFunction("sectorOverview_setNotifyAboutEnemies", SectorOverviewConfig.NotifyAboutEnemies)
 end
