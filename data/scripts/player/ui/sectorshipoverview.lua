@@ -985,23 +985,27 @@ function SectorShipOverview.sectorOverview_refreshCrewList()
     local white = ColorRGB(1, 1, 1)
     local renderer = UIRenderer()
     
-    local simplifiedIcons = {}
-    simplifiedIcons[CaptainUtility.ClassType.None] = {path = "data/textures/icons/captain-noclass.png", color = ColorRGB(0.7, 0.7, 0.7)}
-    simplifiedIcons[CaptainUtility.ClassType.Commodore] = {path = "data/textures/icons/captain-commodore.png", color = ColorRGB(0, 0.74, 0.74)}
-    simplifiedIcons[CaptainUtility.ClassType.Smuggler] = {path = "data/textures/icons/captain-smuggler.png", color = ColorRGB(0.78, 0.03, 0.75)}
-    simplifiedIcons[CaptainUtility.ClassType.Merchant] = {path = "data/textures/icons/captain-merchant.png", color = ColorRGB(0.5, 0.8, 0)}
-    simplifiedIcons[CaptainUtility.ClassType.Miner] = {path = "data/textures/icons/captain-miner.png", color = ColorRGB(0.5, 0.8, 0)}
-    simplifiedIcons[CaptainUtility.ClassType.Scavenger] = {path = "data/textures/icons/captain-scavenger.png", color = ColorRGB(0.1, 0.5, 1)}
-    simplifiedIcons[CaptainUtility.ClassType.Explorer] = {path = "data/textures/icons/captain-explorer.png", color = ColorRGB(1, 0.88, 0.04)}
-    simplifiedIcons[CaptainUtility.ClassType.Daredevil] = {path = "data/textures/icons/captain-daredevil.png", color = ColorRGB(0.9, 0.1, 0.1)}
-    simplifiedIcons[CaptainUtility.ClassType.Scientist] = {path = "data/textures/icons/captain-scientist.png", color = ColorRGB(1, 0.47, 0)}
-    simplifiedIcons[CaptainUtility.ClassType.Hunter] = {path = "data/textures/icons/captain-hunter.png", color = ColorRGB(1, 0.43, 0.77)}
-    simplifiedIcons[CaptainUtility.ClassType.SquadLeader] = {path = "data/textures/icons/captain.png", color = ColorRGB(0.85, 0.6, 0.1)}
-    simplifiedIcons[CaptainUtility.ClassType.ShieldMaster] = {path = "data/textures/icons/captain.png", color = ColorRGB(0.4, 0.4, 1.0)}
-    simplifiedIcons[CaptainUtility.ClassType.AICaptain] = {path = "data/textures/icons/captain.png", color = ColorRGB(0.0, 0.5, 1.0)}
-    simplifiedIcons[CaptainUtility.ClassType.LimitBreaker] = {path = "data/textures/icons/captain.png", color = ColorRGB(0.8, 0.3, 0.3)}
-    simplifiedIcons[CaptainUtility.ClassType.StarSurfer] = {path = "data/textures/icons/captain.png", color = ColorRGB(0.7, 0.3, 0.7)}
-    simplifiedIcons[CaptainUtility.ClassType.LootGoblin] = {path = "data/textures/icons/captain.png", color = ColorRGB(0.1, 0.8, 0.1)}
+    -- Use global shared captain icon registry for cross-mod compatibility
+    -- If no registry exists, we become the baseline provider for all mods that don't define their own captain icons
+    if not _G["simplifiedIcons"] then
+        _G["simplifiedIcons"] = {}
+        local simplifiedIcons = _G["simplifiedIcons"]
+        
+        -- Populate vanilla captain classes as baseline
+        simplifiedIcons[CaptainUtility.ClassType.None] = {path = "data/textures/icons/captain-noclass.png", color = ColorRGB(1, 1, 1)}
+        simplifiedIcons[CaptainUtility.ClassType.Commodore] = {path = "data/textures/icons/captain-commodore.png", color = ColorRGB(0, 0.74, 0.74)}
+        simplifiedIcons[CaptainUtility.ClassType.Smuggler] = {path = "data/textures/icons/captain-smuggler.png", color = ColorRGB(0.78, 0.03, 0.75)}
+        simplifiedIcons[CaptainUtility.ClassType.Merchant] = {path = "data/textures/icons/captain-merchant.png", color = ColorRGB(0.5, 0.8, 0)}
+        simplifiedIcons[CaptainUtility.ClassType.Miner] = {path = "data/textures/icons/captain-miner.png", color = ColorRGB(0.5, 0.8, 0)}
+        simplifiedIcons[CaptainUtility.ClassType.Scavenger] = {path = "data/textures/icons/captain-scavenger.png", color = ColorRGB(0.1, 0.5, 1)}
+        simplifiedIcons[CaptainUtility.ClassType.Explorer] = {path = "data/textures/icons/captain-explorer.png", color = ColorRGB(1, 0.88, 0.04)}
+        simplifiedIcons[CaptainUtility.ClassType.Daredevil] = {path = "data/textures/icons/captain-daredevil.png", color = ColorRGB(0.9, 0.1, 0.1)}
+        simplifiedIcons[CaptainUtility.ClassType.Scientist] = {path = "data/textures/icons/captain-scientist.png", color = ColorRGB(1, 0.47, 0)}
+        simplifiedIcons[CaptainUtility.ClassType.Hunter] = {path = "data/textures/icons/captain-hunter.png", color = ColorRGB(1, 0.43, 0.77)}
+    end
+    
+    local simplifiedIcons = _G["simplifiedIcons"]
+    
     local classProperties = CaptainUtility.ClassProperties()
     
     for _, entry in pairs(stationList.entries) do
@@ -1018,24 +1022,45 @@ function SectorShipOverview.sectorOverview_refreshCrewList()
         local captainTooltip = ""
         
         if captain then
-            -- Handle primary class
-            local primaryIcon = simplifiedIcons[captain.primaryClass]
-            if primaryIcon then
-                table.insert(captainIcons, primaryIcon)
-                if captain.primaryClass == 0 then
-                    captainTooltip = "Captain [no class"%_t
-                else
-                    captainTooltip = "Captain ["%_t .. classProperties[captain.primaryClass].displayName % _t
-                end
-            else
-                -- Fallback for unknown captain class
+            -- Handle Class 0 (no class) as special case - same pattern as working mod 3296627306
+            if captain.primaryClass == 0 then
                 table.insert(captainIcons, {path = "data/textures/icons/captain-noclass.png", color = ColorRGB(1, 1, 1)})
-                captainTooltip = "Captain [unknown class"%_t
+                captainTooltip = "Captain [no class"%_t
+            else
+                -- Handle other classes using global registry with fallback
+                local primaryIcon = simplifiedIcons[captain.primaryClass]
+                if not primaryIcon and classProperties[captain.primaryClass] then
+                    -- Dynamic fallback: create icon entry for unknown modded class
+                    primaryIcon = {
+                        path = classProperties[captain.primaryClass].icon or "data/textures/icons/captain-noclass.png", 
+                        color = ColorRGB(1, 1, 1)
+                    }
+                    -- Register it globally for future use
+                    simplifiedIcons[captain.primaryClass] = primaryIcon
+                end
+                
+                if primaryIcon then
+                    table.insert(captainIcons, primaryIcon)
+                    captainTooltip = "Captain ["%_t .. classProperties[captain.primaryClass].displayName % _t
+                else
+                    -- Ultimate fallback for completely unknown class
+                    table.insert(captainIcons, {path = "data/textures/icons/captain-noclass.png", color = ColorRGB(1, 1, 1)})
+                    captainTooltip = "Captain [unknown class"%_t
+                end
             end
             
-            -- Handle secondary class
+            -- Handle secondary class with same dynamic logic
             if captain.secondaryClass and captain.secondaryClass ~= 0 then
                 local secondaryIcon = simplifiedIcons[captain.secondaryClass]
+                if not secondaryIcon and classProperties[captain.secondaryClass] then
+                    -- Dynamic fallback for secondary class
+                    secondaryIcon = {
+                        path = classProperties[captain.secondaryClass].icon or "data/textures/icons/captain-noclass.png", 
+                        color = ColorRGB(1, 1, 1)
+                    }
+                    simplifiedIcons[captain.secondaryClass] = secondaryIcon
+                end
+                
                 if secondaryIcon then
                     table.insert(captainIcons, secondaryIcon)
                     captainTooltip = captainTooltip .. ", " .. classProperties[captain.secondaryClass].displayName % _t
