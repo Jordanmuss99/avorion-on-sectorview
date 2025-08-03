@@ -7,7 +7,6 @@
 local CustomTabbedWindow = include("azimuthlib-customtabbedwindow")
 
 local ResizableWindow = {}
-ResizableWindow.__index = ResizableWindow
 
 -- Global state for tracking all resizable windows and mouse events
 local resizableWindows = {}
@@ -54,61 +53,110 @@ local HandleConfig = {
     thickness = 1       -- Visual thickness (when visible)
 }
 
+-- Validation helper for HandleTypes position functions
+local function validateRect(rect, handleName)
+    if not rect then
+        print("ERROR: HandleTypes." .. handleName .. ".position - rect is nil")
+        return false
+    end
+    if not rect.lower or not rect.upper then
+        print("ERROR: HandleTypes." .. handleName .. ".position - rect missing lower/upper properties")
+        return false
+    end
+    return true
+end
+
 -- Handle definitions with cursor types and resize logic
 local HandleTypes = {
     topLeft = {
         cursor = "resize-nw",
-        position = function(rect) return vec2(rect.lower.x - HandleConfig.margin, rect.lower.y - HandleConfig.margin) end,
+        position = function(rect) 
+            if not validateRect(rect, "topLeft") then return vec2(0, 0) end
+            return vec2(rect.lower.x - HandleConfig.margin, rect.lower.y - HandleConfig.margin) 
+        end,
         size = function() return vec2(HandleConfig.size, HandleConfig.size) end,
         resize = function(delta, startSize) return vec2(startSize.x - delta.x, startSize.y - delta.y) end,
         reposition = function(delta, startPos) return vec2(startPos.x + delta.x, startPos.y + delta.y) end
     },
     topRight = {
         cursor = "resize-ne", 
-        position = function(rect) return vec2(rect.upper.x - HandleConfig.size + HandleConfig.margin, rect.lower.y - HandleConfig.margin) end,
+        position = function(rect) 
+            if not validateRect(rect, "topRight") then return vec2(0, 0) end
+            return vec2(rect.upper.x - HandleConfig.size + HandleConfig.margin, rect.lower.y - HandleConfig.margin) 
+        end,
         size = function() return vec2(HandleConfig.size, HandleConfig.size) end,
         resize = function(delta, startSize) return vec2(startSize.x + delta.x, startSize.y - delta.y) end,
         reposition = function(delta, startPos) return vec2(startPos.x, startPos.y + delta.y) end
     },
     bottomLeft = {
         cursor = "resize-sw",
-        position = function(rect) return vec2(rect.lower.x - HandleConfig.margin, rect.upper.y - HandleConfig.size + HandleConfig.margin) end,
+        position = function(rect) 
+            if not validateRect(rect, "bottomLeft") then return vec2(0, 0) end
+            return vec2(rect.lower.x - HandleConfig.margin, rect.upper.y - HandleConfig.size + HandleConfig.margin) 
+        end,
         size = function() return vec2(HandleConfig.size, HandleConfig.size) end,
         resize = function(delta, startSize) return vec2(startSize.x - delta.x, startSize.y + delta.y) end,
         reposition = function(delta, startPos) return vec2(startPos.x + delta.x, startPos.y) end
     },
     bottomRight = {
         cursor = "resize-se",
-        position = function(rect) return vec2(rect.upper.x - HandleConfig.size + HandleConfig.margin, rect.upper.y - HandleConfig.size + HandleConfig.margin) end,
+        position = function(rect) 
+            if not validateRect(rect, "bottomRight") then return vec2(0, 0) end
+            return vec2(rect.upper.x - HandleConfig.size + HandleConfig.margin, rect.upper.y - HandleConfig.size + HandleConfig.margin) 
+        end,
         size = function() return vec2(HandleConfig.size, HandleConfig.size) end,
         resize = function(delta, startSize) return vec2(startSize.x + delta.x, startSize.y + delta.y) end,
         reposition = function(delta, startPos) return startPos end
     },
     top = {
         cursor = "resize-n",
-        position = function(rect) return vec2(rect.lower.x + HandleConfig.margin, rect.lower.y - HandleConfig.margin) end,
-        size = function(rect) return vec2(rect.width - 2 * HandleConfig.margin, HandleConfig.size) end,
+        position = function(rect) 
+            if not validateRect(rect, "top") then return vec2(0, 0) end
+            return vec2(rect.lower.x + HandleConfig.margin, rect.lower.y - HandleConfig.margin) 
+        end,
+        size = function(rect) 
+            if not validateRect(rect, "top") then return vec2(HandleConfig.size, HandleConfig.size) end
+            return vec2(rect.width - 2 * HandleConfig.margin, HandleConfig.size) 
+        end,
         resize = function(delta, startSize) return vec2(startSize.x, startSize.y - delta.y) end,
         reposition = function(delta, startPos) return vec2(startPos.x, startPos.y + delta.y) end
     },
     bottom = {
         cursor = "resize-s",
-        position = function(rect) return vec2(rect.lower.x + HandleConfig.margin, rect.upper.y - HandleConfig.size + HandleConfig.margin) end,
-        size = function(rect) return vec2(rect.width - 2 * HandleConfig.margin, HandleConfig.size) end,
+        position = function(rect) 
+            if not validateRect(rect, "bottom") then return vec2(0, 0) end
+            return vec2(rect.lower.x + HandleConfig.margin, rect.upper.y - HandleConfig.size + HandleConfig.margin) 
+        end,
+        size = function(rect) 
+            if not validateRect(rect, "bottom") then return vec2(HandleConfig.size, HandleConfig.size) end
+            return vec2(rect.width - 2 * HandleConfig.margin, HandleConfig.size) 
+        end,
         resize = function(delta, startSize) return vec2(startSize.x, startSize.y + delta.y) end,
         reposition = function(delta, startPos) return startPos end
     },
     left = {
         cursor = "resize-w",
-        position = function(rect) return vec2(rect.lower.x - HandleConfig.margin, rect.lower.y + HandleConfig.margin) end,
-        size = function(rect) return vec2(HandleConfig.size, rect.height - 2 * HandleConfig.margin) end,
+        position = function(rect) 
+            if not validateRect(rect, "left") then return vec2(0, 0) end
+            return vec2(rect.lower.x - HandleConfig.margin, rect.lower.y + HandleConfig.margin) 
+        end,
+        size = function(rect) 
+            if not validateRect(rect, "left") then return vec2(HandleConfig.size, HandleConfig.size) end
+            return vec2(HandleConfig.size, rect.height - 2 * HandleConfig.margin) 
+        end,
         resize = function(delta, startSize) return vec2(startSize.x - delta.x, startSize.y) end,
         reposition = function(delta, startPos) return vec2(startPos.x + delta.x, startPos.y) end
     },
     right = {
         cursor = "resize-e",
-        position = function(rect) return vec2(rect.upper.x - HandleConfig.size + HandleConfig.margin, rect.lower.y + HandleConfig.margin) end,
-        size = function(rect) return vec2(HandleConfig.size, rect.height - 2 * HandleConfig.margin) end,
+        position = function(rect) 
+            if not validateRect(rect, "right") then return vec2(0, 0) end
+            return vec2(rect.upper.x - HandleConfig.size + HandleConfig.margin, rect.lower.y + HandleConfig.margin) 
+        end,
+        size = function(rect) 
+            if not validateRect(rect, "right") then return vec2(HandleConfig.size, HandleConfig.size) end
+            return vec2(HandleConfig.size, rect.height - 2 * HandleConfig.margin) 
+        end,
         resize = function(delta, startSize) return vec2(startSize.x + delta.x, startSize.y) end,
         reposition = function(delta, startPos) return startPos end
     }
@@ -126,6 +174,22 @@ function ResizableWindow.new(namespace, parent, rect, options)
     -- Create the underlying CustomTabbedWindow
     local tabbedWindow = CustomTabbedWindow(namespace, parent, rect)
     
+    -- Validate CustomTabbedWindow is ready (fail-fast pattern)
+    if not tabbedWindow then
+        error("ResizableWindow: CustomTabbedWindow creation failed")
+    end
+    
+    -- Validate rect property is accessible immediately (fail-fast pattern)
+    local rect = tabbedWindow.rect
+    if not rect then
+        error("ResizableWindow: CustomTabbedWindow rect not available")
+    end
+    
+    -- Validate rect has required properties (fail-fast pattern)
+    if not rect.lower or not rect.upper or not rect.width or not rect.height then
+        error("ResizableWindow: Invalid rect properties")
+    end
+
     -- Create the wrapper instance
     local instance = {
         _tabbedWindow = tabbedWindow,
@@ -159,16 +223,16 @@ function ResizableWindow.new(namespace, parent, rect, options)
             frameSkipCount = 0
         }
     }
-    
+
     setmetatable(instance, ResizableWindow)
-    
-    -- Initialize resize functionality if enabled
+
+    -- Immediate synchronous initialization following AzimuthLib pattern
     if instance._config.resizable then
         instance:_initializeResizeHandles()
         instance:_initializePreviewSystem()
         instance:_registerForMouseEvents()
     end
-    
+
     return instance
 end
 
@@ -214,6 +278,7 @@ function ResizableWindow:_initializeVisualGuides()
         snapIndicators = {}
     }
 end
+
 
 --- Initialize resize handles for the window
 function ResizableWindow:_initializeResizeHandles()
@@ -265,14 +330,14 @@ end
 --- Update resize handle positions when window rect changes
 function ResizableWindow:_updateResizeHandles()
     if not self._config.resizable or not self._resizeHandles then return end
-    
+
     local windowRect = self._tabbedWindow.rect
-    
+
     for handleName, handle in pairs(self._resizeHandles) do
         local handleDef = handle.definition
         local newPos = handleDef.position(windowRect)
         local newSize = handleDef.size(windowRect) or handleDef.size()
-        
+
         -- Update handle container position and size
         handle.container.rect = Rect(newPos.x, newPos.y, newPos.x + newSize.x, newPos.y + newSize.y)
         handle.visual.rect = Rect(0, 0, newSize.x, newSize.y)

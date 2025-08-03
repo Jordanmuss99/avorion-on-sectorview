@@ -1,13 +1,14 @@
 include("callable")
 include("azimuthlib-uiproportionalsplitter")
 local Azimuth = include("azimuthlib-basic")
-local CustomTabbedWindow = include("azimuthlib-customtabbedwindow")
+local ResizableWindow = include("resizablewindow")
 
 local SectorOverviewConfig -- client/server
 local sectorOverview_notifyAboutEnemies -- server
 local sectorOverview_configOptions, sectorOverview_isVisible, sectorOverview_refreshCounter, sectorOverview_settingsModified, sectorOverview_playerAddedList, sectorOverview_playerCoords, sectorOverview_GT135 -- client
 local sectorOverview_tabbedWindow, sectorOverview_stationTab, sectorOverview_stationList, sectorOverview_shipTab, sectorOverview_shipList, sectorOverview_gateTab, sectorOverview_gateList, sectorOverview_playerTab, sectorOverview_playerList, sectorOverview_playerCombo, sectorOverview_windowWidthBox, sectorOverview_windowHeightBox, sectorOverview_notifyAboutEnemiesCheckBox, sectorOverview_showNPCNamesCheckBox, sectorOverview_toggleBtnComboBox, sectorOverview_prevTabBtnComboBox, sectorOverview_nextTabBtnComboBox -- client UI
 local sectorOverview_iconColumnWidthBox, sectorOverview_rowHeightBox, sectorOverview_iconsPerRowBox, sectorOverview_showBulletinBoardsTabCheckBox, sectorOverview_showWreckagesCheckBox, sectorOverview_showGoodsTabCheckBox, sectorOverview_showCrewTabCheckBox -- new UI controls
+local sectorOverview_enableResizeCheckBox, sectorOverview_constrainToScreenCheckBox, sectorOverview_snapToSizeCheckBox, sectorOverview_minWindowWidthBox, sectorOverview_minWindowHeightBox, sectorOverview_maxWindowWidthBox, sectorOverview_maxWindowHeightBox -- resize UI controls
 local sectorOverview_goodsTab, sectorOverview_goodsList, sectorOverview_crewTab, sectorOverview_crewList, sectorOverview_missionTab, sectorOverview_missionList -- additional tabs
 
 
@@ -66,7 +67,16 @@ function SectorShipOverview.initialize() -- overridden
       ["ShowBulletinBoardsTab"] = {true, comment = "Show Bulletin Boards tab"},
       ["ShowWreckages"] = {false, comment = "Show wreckages in overview tab"},
       ["ShowGoodsTab"] = {true, comment = "Show Goods tab"},
-      ["ShowCrewTab"] = {true, comment = "Show Crew tab"}
+      ["ShowCrewTab"] = {true, comment = "Show Crew tab"},
+      -- Resize window options
+      ["EnableResize"] = {true, comment = "Enable window resizing with mouse"},
+      ["MinWindowWidth"] = {320, round = -1, min = 300, max = 500, comment = "Minimum window width when resizing"},
+      ["MinWindowHeight"] = {360, round = -1, min = 300, max = 500, comment = "Minimum window height when resizing"},
+      ["MaxWindowWidth"] = {1600, round = -1, min = 800, max = 2400, comment = "Maximum window width when resizing"},
+      ["MaxWindowHeight"] = {1200, round = -1, min = 600, max = 1800, comment = "Maximum window height when resizing"},
+      ["ConstrainToScreen"] = {true, comment = "Constrain window size to screen dimensions"},
+      ["SnapToSize"] = {true, comment = "Snap to common window sizes during resize"},
+      ["ShowResizePreview"] = {false, comment = "Show preview outline when resizing (for debugging)"}
     }
     local isModified
     SectorOverviewConfig, isModified = Azimuth.loadConfig("SectorOverview", sectorOverview_configOptions)
@@ -100,8 +110,38 @@ function SectorShipOverview.initialize() -- overridden
 
 Object name color represents relation status (war, ceasefire, neutral, allies)]]%_t
 
-    sectorOverview_tabbedWindow = CustomTabbedWindow(self, self.window, Rect(vec2(10, 10), size - 10))
-    sectorOverview_tabbedWindow.onSelectedFunction = "refreshList"
+    -- Create ResizableWindow with configuration options and fallback
+    local resizeOptions = {
+        resizable = SectorOverviewConfig.EnableResize,
+        minSize = vec2(SectorOverviewConfig.MinWindowWidth or 320, SectorOverviewConfig.MinWindowHeight or 360),
+        maxSize = vec2(SectorOverviewConfig.MaxWindowWidth or 1600, SectorOverviewConfig.MaxWindowHeight or 1200),
+        constrainToScreen = SectorOverviewConfig.ConstrainToScreen ~= false,
+        snapToSize = SectorOverviewConfig.SnapToSize ~= false,
+        showPreview = SectorOverviewConfig.ShowResizePreview or false,
+        showHandles = false -- Keep handles invisible for production
+    }
+    
+    -- Try to create ResizableWindow with fallback to CustomTabbedWindow
+    local success, result = pcall(function()
+        return ResizableWindow(self, self.window, Rect(vec2(10, 10), size - 10), resizeOptions)
+    end)
+    
+    if success and result then
+        sectorOverview_tabbedWindow = result
+        sectorOverview_tabbedWindow.onSelectedFunction = "refreshList"
+        
+        -- Set up resize callback
+        sectorOverview_tabbedWindow.onResized = function(newSize)
+            self.sectorOverview_onWindowResized(newSize)
+        end
+        
+        print("ResizableWindow initialized successfully")
+    else
+        -- Fallback to CustomTabbedWindow if ResizableWindow fails
+        print("ResizableWindow initialization failed, falling back to CustomTabbedWindow: " .. tostring(result))
+        sectorOverview_tabbedWindow = CustomTabbedWindow(self, self.window, Rect(vec2(10, 10), size - 10))
+        sectorOverview_tabbedWindow.onSelectedFunction = "refreshList"
+    end
 
     -- stations
     sectorOverview_stationTab = sectorOverview_tabbedWindow:createTab("Station List"%_t, "data/textures/icons/solar-system.png", "Station List"%_t)
@@ -256,6 +296,55 @@ Object name color represents relation status (war, ceasefire, neutral, allies)]]
     rect = lister:placeCenter(vec2(lister.inner.width, 35))
     sectorOverview_showCrewTabCheckBox = scrollFrame:createCheckBox(rect, "Show Crew tab"%_t, "sectorOverview_onSettingsModified")
     sectorOverview_showCrewTabCheckBox:setCheckedNoCallback(SectorOverviewConfig.ShowCrewTab)
+
+    -- Resize settings section
+    rect = lister:placeCenter(vec2(lister.inner.width, 35))
+    sectorOverview_enableResizeCheckBox = scrollFrame:createCheckBox(rect, "Enable window resizing"%_t, "sectorOverview_onSettingsModified")
+    sectorOverview_enableResizeCheckBox:setCheckedNoCallback(SectorOverviewConfig.EnableResize)
+
+    rect = lister:placeCenter(vec2(lister.inner.width, 35))
+    sectorOverview_constrainToScreenCheckBox = scrollFrame:createCheckBox(rect, "Constrain to screen"%_t, "sectorOverview_onSettingsModified")
+    sectorOverview_constrainToScreenCheckBox:setCheckedNoCallback(SectorOverviewConfig.ConstrainToScreen)
+
+    rect = lister:placeCenter(vec2(lister.inner.width, 35))
+    sectorOverview_snapToSizeCheckBox = scrollFrame:createCheckBox(rect, "Snap to common sizes"%_t, "sectorOverview_onSettingsModified")
+    sectorOverview_snapToSizeCheckBox:setCheckedNoCallback(SectorOverviewConfig.SnapToSize)
+
+    rect = lister:placeCenter(vec2(lister.inner.width, 30))
+    splitter = UIVerticalSplitter(rect, 10, 0, 0.5)
+    label = scrollFrame:createLabel(splitter.left, "Min window width"%_t, 16)
+    label:setLeftAligned()
+    sectorOverview_minWindowWidthBox = scrollFrame:createTextBox(splitter.right, "")
+    sectorOverview_minWindowWidthBox.allowedCharacters = "0123456789"
+    sectorOverview_minWindowWidthBox.text = SectorOverviewConfig.MinWindowWidth
+    sectorOverview_minWindowWidthBox.onTextChangedFunction = "sectorOverview_onSettingsModified"
+
+    rect = lister:placeCenter(vec2(lister.inner.width, 30))
+    splitter = UIVerticalSplitter(rect, 10, 0, 0.5)
+    label = scrollFrame:createLabel(splitter.left, "Min window height"%_t, 16)
+    label:setLeftAligned()
+    sectorOverview_minWindowHeightBox = scrollFrame:createTextBox(splitter.right, "")
+    sectorOverview_minWindowHeightBox.allowedCharacters = "0123456789"
+    sectorOverview_minWindowHeightBox.text = SectorOverviewConfig.MinWindowHeight
+    sectorOverview_minWindowHeightBox.onTextChangedFunction = "sectorOverview_onSettingsModified"
+
+    rect = lister:placeCenter(vec2(lister.inner.width, 30))
+    splitter = UIVerticalSplitter(rect, 10, 0, 0.5)
+    label = scrollFrame:createLabel(splitter.left, "Max window width"%_t, 16)
+    label:setLeftAligned()
+    sectorOverview_maxWindowWidthBox = scrollFrame:createTextBox(splitter.right, "")
+    sectorOverview_maxWindowWidthBox.allowedCharacters = "0123456789"
+    sectorOverview_maxWindowWidthBox.text = SectorOverviewConfig.MaxWindowWidth
+    sectorOverview_maxWindowWidthBox.onTextChangedFunction = "sectorOverview_onSettingsModified"
+
+    rect = lister:placeCenter(vec2(lister.inner.width, 30))
+    splitter = UIVerticalSplitter(rect, 10, 0, 0.5)
+    label = scrollFrame:createLabel(splitter.left, "Max window height"%_t, 16)
+    label:setLeftAligned()
+    sectorOverview_maxWindowHeightBox = scrollFrame:createTextBox(splitter.right, "")
+    sectorOverview_maxWindowHeightBox.allowedCharacters = "0123456789"
+    sectorOverview_maxWindowHeightBox.text = SectorOverviewConfig.MaxWindowHeight
+    sectorOverview_maxWindowHeightBox.onTextChangedFunction = "sectorOverview_onSettingsModified"
 
     local button = tab:createButton(hsplit[2], "Reset"%_t, "sectorOverview_onResetBtnPressed")
     button.maxTextSize = 16
@@ -413,7 +502,7 @@ function SectorShipOverview.updateClient(timeStep) -- overridden
             end
         end
     end
-    if sectorOverview_settingsModified > 0 then
+    if sectorOverview_settingsModified and sectorOverview_settingsModified > 0 then
         sectorOverview_settingsModified = sectorOverview_settingsModified - timeStep
         if sectorOverview_settingsModified <= 0 then -- save config
             SectorOverviewConfig.WindowWidth = tonumber(sectorOverview_windowWidthBox.text) or 0
@@ -464,6 +553,53 @@ function SectorShipOverview.updateClient(timeStep) -- overridden
             SectorOverviewConfig.ToggleButton = sectorOverview_toggleBtnComboBox.selectedValue
             SectorOverviewConfig.PrevTabButton = sectorOverview_prevTabBtnComboBox.selectedValue
             SectorOverviewConfig.NextTabButton = sectorOverview_nextTabBtnComboBox.selectedValue
+            
+            -- Resize settings
+            SectorOverviewConfig.EnableResize = sectorOverview_enableResizeCheckBox.checked
+            SectorOverviewConfig.ConstrainToScreen = sectorOverview_constrainToScreenCheckBox.checked
+            SectorOverviewConfig.SnapToSize = sectorOverview_snapToSizeCheckBox.checked
+            
+            -- Resize dimension settings with validation
+            SectorOverviewConfig.MinWindowWidth = tonumber(sectorOverview_minWindowWidthBox.text) or 320
+            if SectorOverviewConfig.MinWindowWidth < 300 or SectorOverviewConfig.MinWindowWidth > 500 then
+                SectorOverviewConfig.MinWindowWidth = math.max(300, math.min(500, SectorOverviewConfig.MinWindowWidth))
+                if not sectorOverview_minWindowWidthBox.isTypingActive then
+                    sectorOverview_minWindowWidthBox.text = SectorOverviewConfig.MinWindowWidth
+                end
+            end
+            
+            SectorOverviewConfig.MinWindowHeight = tonumber(sectorOverview_minWindowHeightBox.text) or 360
+            if SectorOverviewConfig.MinWindowHeight < 300 or SectorOverviewConfig.MinWindowHeight > 500 then
+                SectorOverviewConfig.MinWindowHeight = math.max(300, math.min(500, SectorOverviewConfig.MinWindowHeight))
+                if not sectorOverview_minWindowHeightBox.isTypingActive then
+                    sectorOverview_minWindowHeightBox.text = SectorOverviewConfig.MinWindowHeight
+                end
+            end
+            
+            SectorOverviewConfig.MaxWindowWidth = tonumber(sectorOverview_maxWindowWidthBox.text) or 1600
+            if SectorOverviewConfig.MaxWindowWidth < 800 or SectorOverviewConfig.MaxWindowWidth > 2400 then
+                SectorOverviewConfig.MaxWindowWidth = math.max(800, math.min(2400, SectorOverviewConfig.MaxWindowWidth))
+                if not sectorOverview_maxWindowWidthBox.isTypingActive then
+                    sectorOverview_maxWindowWidthBox.text = SectorOverviewConfig.MaxWindowWidth
+                end
+            end
+            
+            SectorOverviewConfig.MaxWindowHeight = tonumber(sectorOverview_maxWindowHeightBox.text) or 1200
+            if SectorOverviewConfig.MaxWindowHeight < 600 or SectorOverviewConfig.MaxWindowHeight > 1800 then
+                SectorOverviewConfig.MaxWindowHeight = math.max(600, math.min(1800, SectorOverviewConfig.MaxWindowHeight))
+                if not sectorOverview_maxWindowHeightBox.isTypingActive then
+                    sectorOverview_maxWindowHeightBox.text = SectorOverviewConfig.MaxWindowHeight
+                end
+            end
+            
+            -- Update ResizableWindow configuration if resize settings changed
+            if sectorOverview_tabbedWindow and sectorOverview_tabbedWindow._config then
+                sectorOverview_tabbedWindow._config.resizable = SectorOverviewConfig.EnableResize
+                sectorOverview_tabbedWindow._config.minSize = vec2(SectorOverviewConfig.MinWindowWidth, SectorOverviewConfig.MinWindowHeight)
+                sectorOverview_tabbedWindow._config.maxSize = vec2(SectorOverviewConfig.MaxWindowWidth, SectorOverviewConfig.MaxWindowHeight)
+                sectorOverview_tabbedWindow._config.constrainToScreen = SectorOverviewConfig.ConstrainToScreen
+                sectorOverview_tabbedWindow._config.snapToSize = SectorOverviewConfig.SnapToSize
+            end
 
             Azimuth.saveConfig("SectorOverview", SectorOverviewConfig, sectorOverview_configOptions)
 
@@ -489,21 +625,126 @@ function SectorShipOverview.updateWindowSize()
         sectorOverview_tabbedWindow.size = newSize - vec2(20, 20)
     end
     
-    -- Update all tab list sizes
-    if sectorOverview_stationList then
+    -- Perform comprehensive layout update
+    self.updateAllSplitterLayouts()
+    self.updateListSizes()
+end
+
+-- Callback for ResizableWindow resize events
+function SectorShipOverview.sectorOverview_onWindowResized(newSize)
+    if not SectorOverviewConfig then return end
+    
+    -- Update config with new size (from resize operation)
+    local actualWindowSize = newSize + vec2(20, 20) -- Account for margins
+    SectorOverviewConfig.WindowWidth = actualWindowSize.x
+    SectorOverviewConfig.WindowHeight = actualWindowSize.y
+    
+    -- Update UI text boxes to reflect new size
+    if sectorOverview_windowWidthBox and not sectorOverview_windowWidthBox.isTypingActive then
+        sectorOverview_windowWidthBox.text = tostring(math.floor(actualWindowSize.x))
+    end
+    if sectorOverview_windowHeightBox and not sectorOverview_windowHeightBox.isTypingActive then
+        sectorOverview_windowHeightBox.text = tostring(math.floor(actualWindowSize.y))
+    end
+    
+    -- Update actual window size to match
+    if self.window then
+        self.window.size = actualWindowSize
+    end
+    
+    -- Perform deferred layout updates for performance during resize
+    deferredCallback(0.1, "sectorOverview_deferredLayoutUpdate")
+    
+    -- Save config after resize completes
+    Azimuth.saveConfig("SectorOverview", SectorOverviewConfig, sectorOverview_configOptions)
+end
+
+-- Deferred layout update for performance during resize operations
+function SectorShipOverview.sectorOverview_deferredLayoutUpdate()
+    self.updateAllSplitterLayouts()
+    self.updateListSizes()
+end
+
+-- Update all splitter layouts after resize
+function SectorShipOverview.updateAllSplitterLayouts()
+    if not sectorOverview_tabbedWindow then return end
+    
+    -- Update player tab splitter if it exists
+    if sectorOverview_playerTab and sectorOverview_playerTab.size then
+        -- Recreate the proportional splitter with new dimensions
+        local newHsplit = UIHorizontalProportionalSplitter(Rect(sectorOverview_playerTab.size), 10, 0, {30, 0.5, 25, 35})
+        
+        -- Update existing UI elements with new rects if they exist
+        if sectorOverview_playerList and sectorOverview_playerList.rect then
+            sectorOverview_playerList.rect = newHsplit[2]
+        end
+        if sectorOverview_playerCombo and sectorOverview_playerCombo.rect then
+            sectorOverview_playerCombo.rect = newHsplit[3]
+        end
+    end
+    
+    -- Update other tab splitters as needed
+    -- Additional splitter updates can be added here for other tabs that use proportional layouts
+end
+
+-- Update all list sizes and column widths
+function SectorShipOverview.updateListSizes()
+    -- Update station list
+    if sectorOverview_stationList and sectorOverview_stationTab then
         sectorOverview_stationList.size = sectorOverview_stationTab.size
+        sectorOverview_stationList:setColumnWidth(0, SectorOverviewConfig.IconColumnWidth or 25)
+        sectorOverview_stationList:setColumnWidth(1, SectorOverviewConfig.IconColumnWidth or 25)
         sectorOverview_stationList:setColumnWidth(2, sectorOverview_stationList.width - 85)
+        sectorOverview_stationList:setColumnWidth(3, SectorOverviewConfig.IconColumnWidth or 25)
     end
-    if sectorOverview_shipList then
+    
+    -- Update ship list
+    if sectorOverview_shipList and sectorOverview_shipTab then
         sectorOverview_shipList.size = sectorOverview_shipTab.size
+        sectorOverview_shipList:setColumnWidth(0, SectorOverviewConfig.IconColumnWidth or 25)
+        sectorOverview_shipList:setColumnWidth(1, SectorOverviewConfig.IconColumnWidth or 25)
         sectorOverview_shipList:setColumnWidth(2, sectorOverview_shipList.width - 85)
+        sectorOverview_shipList:setColumnWidth(3, SectorOverviewConfig.IconColumnWidth or 25)
     end
-    if sectorOverview_gateList then
+    
+    -- Update gate list
+    if sectorOverview_gateList and sectorOverview_gateTab then
         sectorOverview_gateList.size = sectorOverview_gateTab.size
+        sectorOverview_gateList:setColumnWidth(0, SectorOverviewConfig.IconColumnWidth or 25)
         sectorOverview_gateList:setColumnWidth(1, sectorOverview_gateList.width - 35)
     end
-    if sectorOverview_playerList then
+    
+    -- Update player list
+    if sectorOverview_playerList and sectorOverview_playerTab then
         sectorOverview_playerList.size = sectorOverview_playerTab.size
+    end
+    
+    -- Update additional tab lists with content sizing settings
+    if sectorOverview_goodsList and sectorOverview_goodsTab then
+        sectorOverview_goodsList.size = sectorOverview_goodsTab.size
+        sectorOverview_goodsList.rowHeight = SectorOverviewConfig.RowHeight or 25
+        local numColumns = (SectorOverviewConfig.IconsPerRow or 11) + 2
+        for i = 1, numColumns do
+            sectorOverview_goodsList:setColumnWidth(i-1, SectorOverviewConfig.IconColumnWidth or 25)
+        end
+    end
+    
+    if sectorOverview_crewList and sectorOverview_crewTab then
+        sectorOverview_crewList.size = sectorOverview_crewTab.size
+        sectorOverview_crewList.rowHeight = SectorOverviewConfig.RowHeight or 25
+        local numColumns = (SectorOverviewConfig.IconsPerRow or 11) + 2
+        for i = 1, numColumns do
+            sectorOverview_crewList:setColumnWidth(i-1, SectorOverviewConfig.IconColumnWidth or 25)
+        end
+    end
+    
+    if sectorOverview_missionList and sectorOverview_missionTab then
+        sectorOverview_missionList.size = sectorOverview_missionTab.size
+        sectorOverview_missionList.rowHeight = SectorOverviewConfig.RowHeight or 25
+        local numColumns = (SectorOverviewConfig.IconsPerRow or 11) + 2
+        for i = 1, numColumns do
+            sectorOverview_missionList:setColumnWidth(i-1, SectorOverviewConfig.IconColumnWidth or 25)
+        end
     end
 end
 
@@ -848,7 +1089,7 @@ end
 function SectorShipOverview.onPlayerStateChanged(new, old) -- overridden
     local isOldNormal = old == PlayerStateType.Fly or old == PlayerStateType.Interact
     local isNewNormal = new == PlayerStateType.Fly or new == PlayerStateType.Interact
-    
+
     if isOldNormal and not isNewNormal then -- save status
         sectorOverview_isVisible = self.window.visible
         if new == PlayerStateType.Strategy then -- always show
@@ -881,67 +1122,67 @@ end
 -- Custom refresh functions for new tabs
 function SectorShipOverview.sectorOverview_refreshGoodsList()
     if not sectorOverview_goodsList then return end
-    
+
     local lists = self.collectEntities()
     local stationList = lists[1]
     local player = Player()
-    
+
     local scrollPosition = sectorOverview_goodsList.scrollPosition
     sectorOverview_goodsList:clear()
-    
+
     local white = ColorRGB(1, 1, 1)
     local buyColor = ColorRGB(1, 0.8, 0.7)
     local sellColor = ColorRGB(0.8, 0.8, 1)
-    
+
     local renderer = UIRenderer()
-    
+
     for _, entry in pairs(stationList.entries) do
         local entity = entry.entity
         local color = renderer:getEntityTargeterColor(entity)
-        
+
         local sellable, buyable = TradingUtility.getBuyableAndSellableGoods(entity, nil, nil, player)
-        
+
         local soldGoods = {}
         for _, good in pairs(buyable) do
             table.insert(soldGoods, good.good)
         end
-        
+
         local goodsInDemand = {}
         for _, good in pairs(sellable) do
             table.insert(goodsInDemand, good.good)
         end
-        
+
         if #soldGoods > 0 or #goodsInDemand > 0 then
             sectorOverview_goodsList:addRow(entity.id.string)
             sectorOverview_goodsList:setEntry(0, sectorOverview_goodsList.rows - 1, entry.icon, false, false, white, sectorOverview_goodsList.width - 2 * self.iconColumnWidth)
             sectorOverview_goodsList:setEntry(1, sectorOverview_goodsList.rows - 1, entry.name, false, false, color, sectorOverview_goodsList.width - 2 * self.iconColumnWidth)
             sectorOverview_goodsList:setEntry(11, sectorOverview_goodsList.rows - 1, entry.group, false, false, white, sectorOverview_goodsList.width - 2 * self.iconColumnWidth)
             sectorOverview_goodsList:setEntryType(0, sectorOverview_goodsList.rows - 1, ListBoxEntryType.PixelIcon)
-            
+
             local supplyIcons = {}
             local supplyTooltips = {}
             for _, good in pairs(soldGoods) do
                 table.insert(supplyTooltips, good.name % _t)
                 table.insert(supplyIcons, good.icon)
             end
-            
+
             local demandIcons = {}
             local demandTooltips = {}
             for _, good in pairs(goodsInDemand) do
                 table.insert(demandTooltips, good.name % _t)
                 table.insert(demandIcons, good.icon)
             end
-            
+
             sectorOverview_goodsList:addRow(entity.id.string)
-            
+
             local length = #supplyIcons
             if #demandIcons > length then
                 length = #demandIcons
             end
-            
+
             local column = 1
             local iconsPerRow = SectorOverviewConfig.IconsPerRow or 11
-            
+
             for i = 1, length do
                 local demandColumn = column + 6
                 if i < #supplyIcons + 1 then
@@ -949,15 +1190,15 @@ function SectorShipOverview.sectorOverview_refreshGoodsList()
                     sectorOverview_goodsList:setEntryType(column, sectorOverview_goodsList.rows - 1, ListBoxEntryType.Icon)
                     sectorOverview_goodsList:setEntryTooltip(column, sectorOverview_goodsList.rows - 1, supplyTooltips[i])
                 end
-                
+
                 if i < #demandIcons + 1 then
                     sectorOverview_goodsList:setEntry(demandColumn, sectorOverview_goodsList.rows - 1, demandIcons[i], false, false, buyColor, 0)
                     sectorOverview_goodsList:setEntryType(demandColumn, sectorOverview_goodsList.rows - 1, ListBoxEntryType.Icon)
                     sectorOverview_goodsList:setEntryTooltip(demandColumn, sectorOverview_goodsList.rows - 1, demandTooltips[i])
                 end
-                
+
                 column = column + 1
-                
+
                 if i % math.floor(iconsPerRow/2) == 0 and length > i then
                     sectorOverview_goodsList:addRow(entity.id.string)
                     column = 1
@@ -965,7 +1206,7 @@ function SectorShipOverview.sectorOverview_refreshGoodsList()
             end
         end
     end
-    
+
     if player.selectedObject then
         sectorOverview_goodsList:selectValueNoCallback(player.selectedObject.string)
     end
@@ -974,23 +1215,23 @@ end
 
 function SectorShipOverview.sectorOverview_refreshCrewList()
     if not sectorOverview_crewList then return end
-    
+
     local lists = self.collectEntities()
     local stationList = lists[1]
     local player = Player()
-    
+
     local scrollPosition = sectorOverview_crewList.scrollPosition
     sectorOverview_crewList:clear()
-    
+
     local white = ColorRGB(1, 1, 1)
     local renderer = UIRenderer()
-    
+
     -- Use global shared captain icon registry for cross-mod compatibility
     -- If no registry exists, we become the baseline provider for all mods that don't define their own captain icons
     if not _G["simplifiedIcons"] then
         _G["simplifiedIcons"] = {}
         local simplifiedIcons = _G["simplifiedIcons"]
-        
+
         -- Populate vanilla captain classes as baseline
         simplifiedIcons[CaptainUtility.ClassType.None] = {path = "data/textures/icons/captain-noclass.png", color = ColorRGB(1, 1, 1)}
         simplifiedIcons[CaptainUtility.ClassType.Commodore] = {path = "data/textures/icons/captain-commodore.png", color = ColorRGB(0, 0.74, 0.74)}
@@ -1003,24 +1244,24 @@ function SectorShipOverview.sectorOverview_refreshCrewList()
         simplifiedIcons[CaptainUtility.ClassType.Scientist] = {path = "data/textures/icons/captain-scientist.png", color = ColorRGB(1, 0.47, 0)}
         simplifiedIcons[CaptainUtility.ClassType.Hunter] = {path = "data/textures/icons/captain-hunter.png", color = ColorRGB(1, 0.43, 0.77)}
     end
-    
+
     local simplifiedIcons = _G["simplifiedIcons"]
-    
+
     local classProperties = CaptainUtility.ClassProperties()
-    
+
     for _, entry in pairs(stationList.entries) do
         local entity = entry.entity
         local color = renderer:getEntityTargeterColor(entity)
-        
+
         if not entity:hasScript("data/scripts/entity/crewboard.lua") then goto continue end
-        
+
         local ok, crew, captain = entity:invokeFunction("data/scripts/entity/crewboard.lua", "getAvailableCrewAndCaptain")
-        
+
         if not crew and not captain then goto continue end
-        
+
         local captainIcons = {}
         local captainTooltip = ""
-        
+
         if captain then
             -- Handle Class 0 (no class) as special case - same pattern as working mod 3296627306
             if captain.primaryClass == 0 then
@@ -1038,7 +1279,7 @@ function SectorShipOverview.sectorOverview_refreshCrewList()
                     -- Register it globally for future use
                     simplifiedIcons[captain.primaryClass] = primaryIcon
                 end
-                
+
                 if primaryIcon then
                     table.insert(captainIcons, primaryIcon)
                     captainTooltip = "Captain ["%_t .. classProperties[captain.primaryClass].displayName % _t
@@ -1048,7 +1289,7 @@ function SectorShipOverview.sectorOverview_refreshCrewList()
                     captainTooltip = "Captain [unknown class"%_t
                 end
             end
-            
+
             -- Handle secondary class with same dynamic logic
             if captain.secondaryClass and captain.secondaryClass ~= 0 then
                 local secondaryIcon = simplifiedIcons[captain.secondaryClass]
@@ -1060,36 +1301,36 @@ function SectorShipOverview.sectorOverview_refreshCrewList()
                     }
                     simplifiedIcons[captain.secondaryClass] = secondaryIcon
                 end
-                
+
                 if secondaryIcon then
                     table.insert(captainIcons, secondaryIcon)
                     captainTooltip = captainTooltip .. ", " .. classProperties[captain.secondaryClass].displayName % _t
                 end
             end
-            
+
             captainTooltip = captainTooltip .. "]"
         end
-        
+
         local icons = {}
         local tooltips = {}
-        
+
         for _, crewMember in pairs(crew) do
             local professionNumber = crewMember.profession
             local profession = CrewProfession(professionNumber)
             table.insert(icons, profession.icon)
             table.insert(tooltips, profession:name(profession) % _t)
         end
-        
+
         if captain or #icons > 0 then
             sectorOverview_crewList:addRow(entity.id.string)
             sectorOverview_crewList:setEntry(0, sectorOverview_crewList.rows - 1, entry.icon, false, false, white, sectorOverview_crewList.width - 2 * self.iconColumnWidth)
             sectorOverview_crewList:setEntryType(0, sectorOverview_crewList.rows - 1, ListBoxEntryType.PixelIcon)
-            
+
             sectorOverview_crewList:setEntry(1, sectorOverview_crewList.rows - 1, entry.name, false, false, color, sectorOverview_crewList.width - 2 * self.iconColumnWidth)
             sectorOverview_crewList:setEntryType(1, sectorOverview_crewList.rows - 1, ListBoxEntryType.Text)
-            
+
             sectorOverview_crewList:setEntry(11, sectorOverview_crewList.rows - 1, entry.group, false, false, white, sectorOverview_crewList.width - 2 * self.iconColumnWidth)
-            
+
             sectorOverview_crewList:addRow(entity.id.string)
             for i = 1, #icons do
                 if i == 1 then
@@ -1098,7 +1339,7 @@ function SectorShipOverview.sectorOverview_refreshCrewList()
                     else
                         sectorOverview_crewList:setEntry(i, sectorOverview_crewList.rows - 1, "data/textures/icons/nothing.png", false, false, white, 0)
                     end
-                    
+
                     sectorOverview_crewList:setEntryType(i, sectorOverview_crewList.rows - 1, ListBoxEntryType.Icon)
                     sectorOverview_crewList:setEntryTooltip(i, sectorOverview_crewList.rows - 1, captainTooltip)
                 else
@@ -1108,10 +1349,10 @@ function SectorShipOverview.sectorOverview_refreshCrewList()
                 end
             end
         end
-        
+
         ::continue::
     end
-    
+
     if player.selectedObject then
         sectorOverview_crewList:selectValueNoCallback(player.selectedObject.string)
     end
@@ -1121,51 +1362,47 @@ end
 function SectorShipOverview.sectorOverview_refreshMissionList()
     if not sectorOverview_missionList then 
         print("DEBUG: sectorOverview_missionList is nil")
-        return 
+        return
     end
-    
+
     local lists = self.collectEntities()
     local stationList = lists[1]
     local player = Player()
-    
-    print("DEBUG: Mission refresh - Found " .. #stationList.entries .. " stations")
-    
+
     local scrollPosition = sectorOverview_missionList.scrollPosition
     sectorOverview_missionList:clear()
-    
+
     local white = ColorRGB(1, 1, 1)
     local renderer = UIRenderer()
-    
+
     local stationsProcessed = 0
     local stationsWithMissions = 0
-    
+
     for _, entry in pairs(stationList.entries) do
         local entity = entry.entity
         local color = renderer:getEntityTargeterColor(entity)
         stationsProcessed = stationsProcessed + 1
-        
+
         local missions = {}
         local hasRiftScript = entity:hasScript("dlc/rift/entity/riftresearchcenter.lua")
         local hasBulletinScript = entity:hasScript("data/scripts/entity/bulletinboard.lua")
-        
-        print("DEBUG: Station " .. (entity.name or "Unknown") .. " - Rift:" .. tostring(hasRiftScript) .. " Bulletin:" .. tostring(hasBulletinScript))
-        
+
         if hasRiftScript and player.ownsIntoTheRiftDLC then
             _, missions = entity:invokeFunction("dlc/rift/entity/riftresearchcenter.lua", "getDisplayedBulletins")
-            print("DEBUG: Rift research center missions: " .. (missions and #missions or "nil"))
+            -- print("DEBUG: Rift research center missions: " .. (missions and #missions or "nil"))
         elseif hasBulletinScript then
             _, missions = entity:invokeFunction("data/scripts/entity/bulletinboard.lua", "getDisplayedBulletins")
-            print("DEBUG: Bulletin board missions: " .. (missions and #missions or "nil"))
+            -- print("DEBUG: Bulletin board missions: " .. (missions and #missions or "nil"))
         else
-            print("DEBUG: Station has no mission scripts")
+            -- print("DEBUG: Station has no mission scripts")
             goto continue
         end
-        
+
         if not missions then 
-            print("DEBUG: No missions returned from station")
-            goto continue 
+            -- print("DEBUG: No missions returned from station")
+            goto continue
         end
-        
+
         stationsWithMissions = stationsWithMissions + 1
         local icons = {}
         local tooltips = {}
@@ -1175,33 +1412,29 @@ function SectorShipOverview.sectorOverview_refreshMissionList()
             else
                 table.insert(icons, "data/textures/icons/basic-mission-marker.png")
             end
-            
+
             table.insert(tooltips, mission.brief % _t % mission.formatArguments)
         end
-        
-        print("DEBUG: Station missions - Icons: " .. #icons .. ", Tooltips: " .. #tooltips)
-        
+
+
         if #tooltips > 0 then
             sectorOverview_missionList:addRow(entity.id.string)
             sectorOverview_missionList:setEntry(0, sectorOverview_missionList.rows - 1, entry.icon, false, false, white, sectorOverview_missionList.width - 2 * self.iconColumnWidth)
             sectorOverview_missionList:setEntry(1, sectorOverview_missionList.rows - 1, entry.name, false, false, color, sectorOverview_missionList.width - 2 * self.iconColumnWidth)
             sectorOverview_missionList:setEntry(11, sectorOverview_missionList.rows - 1, entry.group, false, false, white, sectorOverview_missionList.width - 2 * self.iconColumnWidth)
             sectorOverview_missionList:setEntryType(0, sectorOverview_missionList.rows - 1, ListBoxEntryType.PixelIcon)
-            
+
             sectorOverview_missionList:addRow(entity.id.string)
             for i = 1, #icons do
                 sectorOverview_missionList:setEntry(i, sectorOverview_missionList.rows - 1, icons[i], false, false, missions[i].iconColor or white, 0)
                 sectorOverview_missionList:setEntryType(i, sectorOverview_missionList.rows - 1, ListBoxEntryType.Icon)
                 sectorOverview_missionList:setEntryTooltip(i, sectorOverview_missionList.rows - 1, tooltips[i])
             end
-            print("DEBUG: Added station to mission list with " .. #icons .. " mission icons")
         end
-        
+
         ::continue::
     end
-    
-    print("DEBUG: Mission refresh complete - Processed: " .. stationsProcessed .. ", With missions: " .. stationsWithMissions .. ", Total rows: " .. sectorOverview_missionList.rows)
-    
+
     if player.selectedObject then
         sectorOverview_missionList:selectValueNoCallback(player.selectedObject.string)
     end
@@ -1290,6 +1523,37 @@ function SectorShipOverview.sectorOverview_onResetBtnPressed()
 
     SectorOverviewConfig.NextTabButton = sectorOverview_configOptions.NextTabButton[1]
     sectorOverview_nextTabBtnComboBox:setSelectedValueNoCallback(SectorOverviewConfig.NextTabButton)
+
+    -- Resize settings resets
+    SectorOverviewConfig.EnableResize = sectorOverview_configOptions.EnableResize[1]
+    sectorOverview_enableResizeCheckBox:setCheckedNoCallback(SectorOverviewConfig.EnableResize)
+
+    SectorOverviewConfig.ConstrainToScreen = sectorOverview_configOptions.ConstrainToScreen[1]
+    sectorOverview_constrainToScreenCheckBox:setCheckedNoCallback(SectorOverviewConfig.ConstrainToScreen)
+
+    SectorOverviewConfig.SnapToSize = sectorOverview_configOptions.SnapToSize[1]
+    sectorOverview_snapToSizeCheckBox:setCheckedNoCallback(SectorOverviewConfig.SnapToSize)
+
+    SectorOverviewConfig.MinWindowWidth = sectorOverview_configOptions.MinWindowWidth[1]
+    sectorOverview_minWindowWidthBox.text = SectorOverviewConfig.MinWindowWidth
+
+    SectorOverviewConfig.MinWindowHeight = sectorOverview_configOptions.MinWindowHeight[1]
+    sectorOverview_minWindowHeightBox.text = SectorOverviewConfig.MinWindowHeight
+
+    SectorOverviewConfig.MaxWindowWidth = sectorOverview_configOptions.MaxWindowWidth[1]
+    sectorOverview_maxWindowWidthBox.text = SectorOverviewConfig.MaxWindowWidth
+
+    SectorOverviewConfig.MaxWindowHeight = sectorOverview_configOptions.MaxWindowHeight[1]
+    sectorOverview_maxWindowHeightBox.text = SectorOverviewConfig.MaxWindowHeight
+
+    -- Update ResizableWindow configuration after reset
+    if sectorOverview_tabbedWindow and sectorOverview_tabbedWindow._config then
+        sectorOverview_tabbedWindow._config.resizable = SectorOverviewConfig.EnableResize
+        sectorOverview_tabbedWindow._config.minSize = vec2(SectorOverviewConfig.MinWindowWidth, SectorOverviewConfig.MinWindowHeight)
+        sectorOverview_tabbedWindow._config.maxSize = vec2(SectorOverviewConfig.MaxWindowWidth, SectorOverviewConfig.MaxWindowHeight)
+        sectorOverview_tabbedWindow._config.constrainToScreen = SectorOverviewConfig.ConstrainToScreen
+        sectorOverview_tabbedWindow._config.snapToSize = SectorOverviewConfig.SnapToSize
+    end
 
     Azimuth.saveConfig("SectorOverview", SectorOverviewConfig, sectorOverview_configOptions)
 
