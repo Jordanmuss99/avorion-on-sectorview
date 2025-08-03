@@ -4,14 +4,14 @@ meta =
     -- ID of your mod; Make sure this is unique!
     -- Will be used for identifying the mod in dependency lists
     -- Will be changed to workshop ID (ensuring uniqueness) when you upload the mod to the workshop
-    id = "3045003430",
+    id = "ON-SectorOverview",
 
     -- Name of your mod; You may want this to be unique, but it's not absolutely necessary.
     -- This is an additional helper attribute for you to easily identify your mod in the Mods() list
-    name = "SectorOverviewX",
+    name = "ON-SectorOverview",
 
     -- Title of your mod that will be displayed to players
-    title = "Sector OverView X",
+    title = "ON: SectorOverview",
 
     -- Type of your mod, either "mod" or "factionpack"
     type = "mod",
@@ -20,7 +20,7 @@ meta =
     description = "Displays the Sector Overview always without Strategy Mode",
 
     -- Insert all authors into this list
-    authors = {"Shahiko"},
+    authors = {"Shahiko,Jordan"},
 
     -- Version of your mod, should be in format 1.0.0 (major.minor.patch) or 1.0 (major.minor)
     -- This will be used to check for unmet dependencies or incompatibilities, and to check compatibility between clients and dedicated servers with mods.
