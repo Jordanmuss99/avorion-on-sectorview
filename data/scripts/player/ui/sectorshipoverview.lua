@@ -22,12 +22,21 @@ sectorOverview_GT135 = GameVersion() >= Version(1, 3, 5)
 
 -- Store base initialize function before overriding
 local BaseInitialize = SectorShipOverview.initialize
+-- Store base game functions that might interfere with custom components
+local BaseRefreshGoodsList = nil
+local BaseShow = nil
+
+-- Component tagging system to distinguish custom components
+local customComponents = {}
 
 function SectorShipOverview.initialize() -- overridden
     -- Call base game initialization first to set up overviewList and other base UI
     if BaseInitialize then
         BaseInitialize()
     end
+    
+    -- Override base game functions after base initialization
+    setupBaseGameOverrides()
     
     local allowedKeys = {
       {"", "-"},
@@ -376,35 +385,50 @@ Object name color represents relation status (war, ceasefire, neutral, allies)]]
     demandLabel:setTopAligned()
     
     sectorOverview_goodsList = sectorOverview_goodsTab:createListBoxEx(hsplit.bottom)
-    local numColumns = (SectorOverviewConfig.IconsPerRow or 11) + 2
+    -- Fix: Ensure minimum 14 columns for base game compatibility (base game expects column 13)
+    local baseColumns = (SectorOverviewConfig.IconsPerRow or 11) + 2
+    local numColumns = math.max(baseColumns, 14)  -- Minimum 14 columns
     sectorOverview_goodsList.columns = numColumns
     sectorOverview_goodsList.rowHeight = SectorOverviewConfig.RowHeight or 25
     for i = 1, numColumns do
-        sectorOverview_goodsList:setColumnWidth(0, SectorOverviewConfig.IconColumnWidth or 25)
+        sectorOverview_goodsList:setColumnWidth(i-1, SectorOverviewConfig.IconColumnWidth or 25)
     end
     sectorOverview_goodsList.onSelectFunction = "onEntrySelected"
+    
+    -- Tag as custom component to prevent base game interference
+    customComponents[sectorOverview_goodsList] = true
     
     sectorOverview_crewTab = sectorOverview_tabbedWindow:createTab("Crew"%_t, "data/textures/icons/crew.png", "Crew"%_t)
     local hsplit = UIHorizontalSplitter(Rect(sectorOverview_crewTab.size), 0, 0, 0.0)
     sectorOverview_crewList = sectorOverview_crewTab:createListBoxEx(hsplit.bottom)
-    local numColumns = (SectorOverviewConfig.IconsPerRow or 11) + 2
+    -- Fix: Ensure minimum 14 columns for base game compatibility
+    local baseColumns = (SectorOverviewConfig.IconsPerRow or 11) + 2
+    local numColumns = math.max(baseColumns, 14)  -- Minimum 14 columns
     sectorOverview_crewList.columns = numColumns
     sectorOverview_crewList.rowHeight = SectorOverviewConfig.RowHeight or 25
     for i = 1, numColumns do
-        sectorOverview_crewList:setColumnWidth(0, SectorOverviewConfig.IconColumnWidth or 25)
+        sectorOverview_crewList:setColumnWidth(i-1, SectorOverviewConfig.IconColumnWidth or 25)
     end
     sectorOverview_crewList.onSelectFunction = "onEntrySelected"
+    
+    -- Tag as custom component to prevent base game interference
+    customComponents[sectorOverview_crewList] = true
     
     sectorOverview_missionTab = sectorOverview_tabbedWindow:createTab("Bulletin Boards"%_t, "data/textures/icons/wormhole.png", "Bulletin Boards"%_t)
     local hsplit = UIHorizontalSplitter(Rect(sectorOverview_missionTab.size), 0, 0, 0.0)
     sectorOverview_missionList = sectorOverview_missionTab:createListBoxEx(hsplit.bottom)
-    local numColumns = (SectorOverviewConfig.IconsPerRow or 11) + 2
+    -- Fix: Ensure minimum 14 columns for base game compatibility
+    local baseColumns = (SectorOverviewConfig.IconsPerRow or 11) + 2
+    local numColumns = math.max(baseColumns, 14)  -- Minimum 14 columns
     sectorOverview_missionList.columns = numColumns
     sectorOverview_missionList.rowHeight = SectorOverviewConfig.RowHeight or 25
     for i = 1, numColumns do
-        sectorOverview_missionList:setColumnWidth(0, SectorOverviewConfig.IconColumnWidth or 25)
+        sectorOverview_missionList:setColumnWidth(i-1, SectorOverviewConfig.IconColumnWidth or 25)
     end
     sectorOverview_missionList.onSelectFunction = "onEntrySelected"
+    
+    -- Tag as custom component to prevent base game interference
+    customComponents[sectorOverview_missionList] = true
 
     -- Apply initial visibility based on config
     self.sectorOverview_updateTabVisibility()
@@ -740,7 +764,9 @@ function SectorShipOverview.updateListSizes()
     if sectorOverview_goodsList and sectorOverview_goodsTab then
         sectorOverview_goodsList.size = sectorOverview_goodsTab.size
         sectorOverview_goodsList.rowHeight = SectorOverviewConfig.RowHeight or 25
-        local numColumns = (SectorOverviewConfig.IconsPerRow or 11) + 2
+        -- Fix: Ensure minimum 14 columns for base game compatibility
+        local baseColumns = (SectorOverviewConfig.IconsPerRow or 11) + 2
+        local numColumns = math.max(baseColumns, 14)  -- Minimum 14 columns
         for i = 1, numColumns do
             sectorOverview_goodsList:setColumnWidth(i-1, SectorOverviewConfig.IconColumnWidth or 25)
         end
@@ -749,7 +775,9 @@ function SectorShipOverview.updateListSizes()
     if sectorOverview_crewList and sectorOverview_crewTab then
         sectorOverview_crewList.size = sectorOverview_crewTab.size
         sectorOverview_crewList.rowHeight = SectorOverviewConfig.RowHeight or 25
-        local numColumns = (SectorOverviewConfig.IconsPerRow or 11) + 2
+        -- Fix: Ensure minimum 14 columns for base game compatibility
+        local baseColumns = (SectorOverviewConfig.IconsPerRow or 11) + 2
+        local numColumns = math.max(baseColumns, 14)  -- Minimum 14 columns
         for i = 1, numColumns do
             sectorOverview_crewList:setColumnWidth(i-1, SectorOverviewConfig.IconColumnWidth or 25)
         end
@@ -758,7 +786,9 @@ function SectorShipOverview.updateListSizes()
     if sectorOverview_missionList and sectorOverview_missionTab then
         sectorOverview_missionList.size = sectorOverview_missionTab.size
         sectorOverview_missionList.rowHeight = SectorOverviewConfig.RowHeight or 25
-        local numColumns = (SectorOverviewConfig.IconsPerRow or 11) + 2
+        -- Fix: Ensure minimum 14 columns for base game compatibility
+        local baseColumns = (SectorOverviewConfig.IconsPerRow or 11) + 2
+        local numColumns = math.max(baseColumns, 14)  -- Minimum 14 columns
         for i = 1, numColumns do
             sectorOverview_missionList:setColumnWidth(i-1, SectorOverviewConfig.IconColumnWidth or 25)
         end
@@ -1138,7 +1168,16 @@ end
 
 -- Custom refresh functions for new tabs
 function SectorShipOverview.sectorOverview_refreshGoodsList()
-    if not sectorOverview_goodsList then return end
+    -- Safety check: only operate on properly initialized custom components
+    if not sectorOverview_goodsList or not isCustomComponent(sectorOverview_goodsList) then 
+        return 
+    end
+    
+    -- Additional safety check for component integrity
+    if not sectorOverview_goodsList.columns or sectorOverview_goodsList.columns < 14 then
+        print("Warning: Custom goodsList component not properly initialized with minimum columns (has " .. (sectorOverview_goodsList.columns or "nil") .. ", needs 14+)")
+        return
+    end
 
     local lists = self.collectEntities()
     local stationList = lists[1]
@@ -1174,13 +1213,13 @@ function SectorShipOverview.sectorOverview_refreshGoodsList()
 
         if #soldGoods > 0 or #goodsInDemand > 0 then
             sectorOverview_goodsList:addRow(entity.id.string)
-            sectorOverview_goodsList:setEntry(0, sectorOverview_goodsList.rows - 1, entry.icon, false, false, white, sectorOverview_goodsList.width - 2 * self.iconColumnWidth)
-            sectorOverview_goodsList:setEntry(1, sectorOverview_goodsList.rows - 1, entry.name, false, false, color, sectorOverview_goodsList.width - 2 * self.iconColumnWidth)
+            safeSetEntry(sectorOverview_goodsList, 0, sectorOverview_goodsList.rows - 1, entry.icon, false, false, white, sectorOverview_goodsList.width - 2 * self.iconColumnWidth)
+            safeSetEntry(sectorOverview_goodsList, 1, sectorOverview_goodsList.rows - 1, entry.name, false, false, color, sectorOverview_goodsList.width - 2 * self.iconColumnWidth)
             
-            -- Bounds check for group column (was using hardcoded 11)
+            -- Safe bounds check for group column
             local groupColumn = math.min(11, maxColumns)
-            sectorOverview_goodsList:setEntry(groupColumn, sectorOverview_goodsList.rows - 1, entry.group, false, false, white, sectorOverview_goodsList.width - 2 * self.iconColumnWidth)
-            sectorOverview_goodsList:setEntryType(0, sectorOverview_goodsList.rows - 1, ListBoxEntryType.PixelIcon)
+            safeSetEntry(sectorOverview_goodsList, groupColumn, sectorOverview_goodsList.rows - 1, entry.group, false, false, white, sectorOverview_goodsList.width - 2 * self.iconColumnWidth)
+            safeSetEntryType(sectorOverview_goodsList, 0, sectorOverview_goodsList.rows - 1, ListBoxEntryType.PixelIcon)
 
             local supplyIcons = {}
             local supplyTooltips = {}
@@ -1209,18 +1248,18 @@ function SectorShipOverview.sectorOverview_refreshGoodsList()
             for i = 1, length do
                 local demandColumn = column + 6
                 
-                -- Bounds checking for supply column
+                -- Safe bounds checking for supply column
                 if i < #supplyIcons + 1 and column <= maxColumns then
-                    sectorOverview_goodsList:setEntry(column, sectorOverview_goodsList.rows - 1, supplyIcons[i], false, false, sellColor, 0)
-                    sectorOverview_goodsList:setEntryType(column, sectorOverview_goodsList.rows - 1, ListBoxEntryType.Icon)
-                    sectorOverview_goodsList:setEntryTooltip(column, sectorOverview_goodsList.rows - 1, supplyTooltips[i])
+                    safeSetEntry(sectorOverview_goodsList, column, sectorOverview_goodsList.rows - 1, supplyIcons[i], false, false, sellColor, 0)
+                    safeSetEntryType(sectorOverview_goodsList, column, sectorOverview_goodsList.rows - 1, ListBoxEntryType.Icon)
+                    safeSetEntryTooltip(sectorOverview_goodsList, column, sectorOverview_goodsList.rows - 1, supplyTooltips[i])
                 end
 
-                -- Bounds checking for demand column
+                -- Safe bounds checking for demand column
                 if i < #demandIcons + 1 and demandColumn <= maxColumns then
-                    sectorOverview_goodsList:setEntry(demandColumn, sectorOverview_goodsList.rows - 1, demandIcons[i], false, false, buyColor, 0)
-                    sectorOverview_goodsList:setEntryType(demandColumn, sectorOverview_goodsList.rows - 1, ListBoxEntryType.Icon)
-                    sectorOverview_goodsList:setEntryTooltip(demandColumn, sectorOverview_goodsList.rows - 1, demandTooltips[i])
+                    safeSetEntry(sectorOverview_goodsList, demandColumn, sectorOverview_goodsList.rows - 1, demandIcons[i], false, false, buyColor, 0)
+                    safeSetEntryType(sectorOverview_goodsList, demandColumn, sectorOverview_goodsList.rows - 1, ListBoxEntryType.Icon)
+                    safeSetEntryTooltip(sectorOverview_goodsList, demandColumn, sectorOverview_goodsList.rows - 1, demandTooltips[i])
                 end
 
                 column = column + 1
@@ -1607,6 +1646,93 @@ function SectorShipOverview.sectorOverview_onResetBtnPressed()
     self.sectorOverview_updateTabVisibility()
 
     invokeServerFunction("sectorOverview_setNotifyAboutEnemies", SectorOverviewConfig.NotifyAboutEnemies)
+end
+
+-- Base game override functions to prevent interference with custom components
+function setupBaseGameOverrides()
+    -- Store original functions if they exist
+    if SectorShipOverview.refreshGoodsList then
+        BaseRefreshGoodsList = SectorShipOverview.refreshGoodsList
+    end
+    if SectorShipOverview.show then
+        BaseShow = SectorShipOverview.show
+    end
+    
+    -- Override refreshGoodsList to prevent base game from operating on custom components
+    if BaseRefreshGoodsList then
+        SectorShipOverview.refreshGoodsList = function(...)
+            -- Only call base refreshGoodsList if our custom goodsList is not present
+            -- This prevents base game from trying to access column 13 on our custom components
+            if not sectorOverview_goodsList or not customComponents[sectorOverview_goodsList] then
+                return BaseRefreshGoodsList(...)
+            end
+            -- If custom goodsList exists, do nothing - we handle it ourselves
+        end
+    end
+    
+    -- Override show function to ensure safe integration
+    if BaseShow then
+        SectorShipOverview.show = function(...)
+            -- Call base show function
+            local result = BaseShow(...)
+            
+            -- Ensure our custom components are properly initialized after show
+            if sectorOverview_goodsList and customComponents[sectorOverview_goodsList] then
+                -- Refresh our custom goods list safely
+                pcall(function()
+                    SectorShipOverview.sectorOverview_refreshGoodsList()
+                end)
+            end
+            
+            return result
+        end
+    end
+end
+
+-- Safe component validation function
+function isCustomComponent(component)
+    return component and customComponents[component] == true
+end
+
+-- Enhanced bounds checking for ListBoxEx operations
+function safeSetEntry(listBox, column, row, ...)
+    if not listBox or not isCustomComponent(listBox) then
+        -- Let base game handle its own components
+        return
+    end
+    
+    -- Bounds check for custom components
+    if column >= 0 and column < listBox.columns and row >= 0 and row < listBox.rows then
+        listBox:setEntry(column, row, ...)
+    else
+        print("Warning: Attempted to set entry at invalid position [" .. column .. "," .. row .. "] on ListBoxEx with " .. listBox.columns .. " columns and " .. listBox.rows .. " rows")
+    end
+end
+
+-- Enhanced bounds checking for entry type operations
+function safeSetEntryType(listBox, column, row, entryType)
+    if not listBox or not isCustomComponent(listBox) then
+        return
+    end
+    
+    if column >= 0 and column < listBox.columns and row >= 0 and row < listBox.rows then
+        listBox:setEntryType(column, row, entryType)
+    else
+        print("Warning: Attempted to set entry type at invalid position [" .. column .. "," .. row .. "] on ListBoxEx with " .. listBox.columns .. " columns and " .. listBox.rows .. " rows")
+    end
+end
+
+-- Enhanced bounds checking for tooltip operations
+function safeSetEntryTooltip(listBox, column, row, tooltip)
+    if not listBox or not isCustomComponent(listBox) then
+        return
+    end
+    
+    if column >= 0 and column < listBox.columns and row >= 0 and row < listBox.rows then
+        listBox:setEntryTooltip(column, row, tooltip)
+    else
+        print("Warning: Attempted to set entry tooltip at invalid position [" .. column .. "," .. row .. "] on ListBoxEx with " .. listBox.columns .. " columns and " .. listBox.rows .. " rows")
+    end
 end
 
 
