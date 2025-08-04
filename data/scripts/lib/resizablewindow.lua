@@ -36,12 +36,12 @@ local PerformanceConfig = {
 
 -- Visual feedback configuration
 local VisualConfig = {
-    hoverColor = ColorARGB(0.6, 1, 1, 0),      -- Yellow on hover (increased opacity)
-    activeColor = ColorARGB(0.8, 1, 0.5, 0),   -- Orange while dragging (increased opacity)
-    defaultColor = ColorARGB(0.5, 0, 1, 0),    -- Green default (increased opacity for debugging)
-    previewColor = ColorARGB(0.4, 0, 0.8, 1),  -- Blue preview outline (increased opacity)
-    nearLimitColor = ColorARGB(0.7, 1, 0, 0),  -- Red when near size limits (increased opacity)
-    debugColor = ColorARGB(0.8, 1, 0, 1),     -- Magenta for debug mode (high visibility)
+    hoverColor = ColorARGB(0.6, 1.0, 1.0, 0.0),      -- Yellow on hover (increased opacity)
+    activeColor = ColorARGB(0.8, 1.0, 0.5, 0.0),     -- Orange while dragging (increased opacity)
+    defaultColor = ColorARGB(0.5, 0.0, 1.0, 0.0),    -- Green default (increased opacity for debugging)
+    previewColor = ColorARGB(0.4, 0.0, 0.8, 1.0),    -- Blue preview outline (increased opacity)
+    nearLimitColor = ColorARGB(0.7, 1.0, 0.0, 0.0),  -- Red when near size limits (increased opacity)
+    debugColor = ColorARGB(0.8, 1.0, 0.0, 1.0),      -- Magenta for debug mode (high visibility)
     guideThickness = 2,
     pulseSpeed = 2.0
 }
@@ -50,7 +50,7 @@ local VisualConfig = {
 local HandleConfig = {
     size = 12,          -- Handle hit area size in pixels (increased for better visibility)
     margin = 2,         -- Margin from window edge (reduced to keep handles inside bounds)
-    layer = 100,        -- High layer to stay above content
+    layer = 5,          -- Appropriate overlay layer (1-10 range)
     thickness = 2       -- Visual thickness (when visible) - increased for better visibility
 }
 
@@ -293,7 +293,9 @@ function ResizableWindow:_initializePreviewSystem()
     if not self._config.showPreview then return end
     
     -- Create preview outline container
-    local previewContainer = self._parent:createContainer(Rect(0, 0, 100, 100))
+    -- CRITICAL FIX: Use CustomTabbedWindow's internal container as parent
+    local parentContainer = self._tabbedWindow._container or self._parent
+    local previewContainer = parentContainer:createContainer(Rect(0, 0, 100, 100))
     previewContainer.layer = HandleConfig.layer + 1
     previewContainer.visible = false
     
@@ -318,7 +320,9 @@ end
 --- Initialize visual guides for size constraints
 function ResizableWindow:_initializeVisualGuides()
     -- Create guides for showing size constraints
-    local guidesContainer = self._parent:createContainer(Rect(0, 0, 100, 100))
+    -- CRITICAL FIX: Use CustomTabbedWindow's internal container as parent
+    local parentContainer = self._tabbedWindow._container or self._parent
+    local guidesContainer = parentContainer:createContainer(Rect(0, 0, 100, 100))
     guidesContainer.layer = HandleConfig.layer - 1
     guidesContainer.visible = false
     
@@ -376,16 +380,20 @@ function ResizableWindow:_initializeResizeHandles()
         print("[ResizableWindow] Creating handle '" .. handleName .. "' at " .. tostring(handlePos) .. " size " .. tostring(handleSize))
         
         -- Create container for the handle with validation
-        local handleContainer = self._parent:createContainer(handleRect)
+        -- CRITICAL FIX: Use CustomTabbedWindow's internal container as parent
+        local parentContainer = self._tabbedWindow._container or self._parent
+        local handleContainer = parentContainer:createContainer(handleRect)
         if not handleContainer then
             print("Error: ResizableWindow - Failed to create container for handle: " .. handleName)
             goto continue
         end
         
         handleContainer.layer = HandleConfig.layer
+        handleContainer.visible = true  -- CRITICAL: Explicit visibility
         
         -- Create visual indicator with proper initial state
-        local initialColor = ColorARGB(0, 1, 1, 1) -- Invisible by default
+        -- CRITICAL FIX: Use 0.0-1.0 color range instead of 0-255
+        local initialColor = ColorARGB(0.0, 1.0, 1.0, 1.0) -- Invisible by default
         if self._config.showHandles then
             initialColor = VisualConfig.debugColor -- High visibility for debugging
         end
@@ -398,6 +406,9 @@ function ResizableWindow:_initializeResizeHandles()
             end
             goto continue
         end
+        
+        -- CRITICAL: Explicit visibility for the visual element
+        handleVisual.visible = true
         
         -- Store handle information
         self._resizeHandles[handleName] = {
@@ -760,13 +771,14 @@ function ResizableWindow:_updateHandleVisuals(handleName, state)
         if self._config.showHandles then
             color = VisualConfig.debugColor -- Use debug color when handles should be visible
         else
-            color = ColorARGB(0, 1, 1, 1) -- Invisible when showHandles is false
+            color = ColorARGB(0.0, 1.0, 1.0, 1.0) -- Invisible when showHandles is false
         end
     end
     
     -- Apply color with validation
     if handle.visual and color then
         handle.visual.color = color
+        handle.visual.visible = true  -- CRITICAL: Ensure visual is visible
         handle.lastVisualUpdate = currentTime
         
         print("[ResizableWindow] Updated handle '" .. handleName .. "' visual state to '" .. state .. "' with color " .. tostring(color))
