@@ -219,6 +219,7 @@ function ResizableWindow.new(namespace, parent, rect, options)
         _tabbedWindow = tabbedWindow,
         _namespace = namespace,
         _parent = parent,
+        _windowParent = parent, -- Store window-level parent for handles (not content-level)
         _resizeHandles = {},
         _config = {
             resizable = options.resizable ~= false,
@@ -348,6 +349,28 @@ function ResizableWindow:_getSafeRect()
 end
 
 
+--- Get coordinate offset from content-level to window-level positioning
+-- @treturn vec2 - Offset vector to translate content coordinates to window coordinates
+function ResizableWindow:_getWindowLevelOffset()
+    -- Get the actual window rect (window-level coordinates)
+    local windowRect = self._tabbedWindow.rect
+    -- Get content rect (content-level coordinates)
+    local contentRect = self:_getSafeRect()
+    
+    if windowRect and contentRect then
+        -- Calculate offset: window position - content position
+        local offset = vec2(
+            windowRect.lower.x - contentRect.lower.x,
+            windowRect.lower.y - contentRect.lower.y
+        )
+        print("[ResizableWindow] Window-level offset calculated: " .. tostring(offset))
+        return offset
+    else
+        print("[ResizableWindow] Warning: Could not calculate window-level offset, using zero offset")
+        return vec2(0, 0)
+    end
+end
+
 --- Initialize resize handles for the window
 function ResizableWindow:_initializeResizeHandles()
     -- Use safe rect access to avoid AzimuthLib recursive property bug
@@ -359,6 +382,9 @@ function ResizableWindow:_initializeResizeHandles()
     
     print("[ResizableWindow] Initializing resize handles for window rect: " .. tostring(windowRect.lower) .. " to " .. tostring(windowRect.upper))
     print("[ResizableWindow] showHandles = " .. tostring(self._config.showHandles))
+    
+    -- Calculate coordinate offset for window-level positioning
+    local windowOffset = self:_getWindowLevelOffset()
     
     -- Create resize handles for each position
     for handleName, handleDef in pairs(HandleTypes) do
@@ -373,10 +399,22 @@ function ResizableWindow:_initializeResizeHandles()
         
         local handleRect = Rect(handlePos.x, handlePos.y, handlePos.x + handleSize.x, handlePos.y + handleSize.y)
         
-        print("[ResizableWindow] Creating handle '" .. handleName .. "' at " .. tostring(handlePos) .. " size " .. tostring(handleSize))
+        -- Adjust handle position for window-level coordinates
+        local windowLevelPos = vec2(
+            handlePos.x + windowOffset.x,
+            handlePos.y + windowOffset.y
+        )
+        local windowLevelRect = Rect(
+            windowLevelPos.x, 
+            windowLevelPos.y, 
+            windowLevelPos.x + handleSize.x, 
+            windowLevelPos.y + handleSize.y
+        )
         
-        -- Create container for the handle with validation
-        local handleContainer = self._parent:createContainer(handleRect)
+        print("[ResizableWindow] Creating handle '" .. handleName .. "' at content-level " .. tostring(handlePos) .. " -> window-level " .. tostring(windowLevelPos) .. " size " .. tostring(handleSize))
+        
+        -- CRITICAL FIX: Create container at window-level parent with window-level coordinates
+        local handleContainer = self._windowParent:createContainer(windowLevelRect)
         if not handleContainer then
             print("Error: ResizableWindow - Failed to create container for handle: " .. handleName)
             goto continue
@@ -441,6 +479,9 @@ function ResizableWindow:_updateResizeHandles()
         print("Warning: ResizableWindow - Cannot update resize handles, window rect unavailable")
         return
     end
+    
+    -- Recalculate window-level offset (window may have moved)
+    local windowOffset = self:_getWindowLevelOffset()
 
     for handleName, handle in pairs(self._resizeHandles) do
         -- Additional safety check for handle validity
@@ -455,8 +496,19 @@ function ResizableWindow:_updateResizeHandles()
 
         -- Validate position and size before applying
         if newPos and newSize and newPos.x and newPos.y and newSize.x and newSize.y then
-            -- Update handle container position and size
-            handle.container.rect = Rect(newPos.x, newPos.y, newPos.x + newSize.x, newPos.y + newSize.y)
+            -- Convert to window-level coordinates
+            local windowLevelPos = vec2(
+                newPos.x + windowOffset.x,
+                newPos.y + windowOffset.y
+            )
+            
+            -- Update handle container position and size with window-level coordinates
+            handle.container.rect = Rect(
+                windowLevelPos.x, 
+                windowLevelPos.y, 
+                windowLevelPos.x + newSize.x, 
+                windowLevelPos.y + newSize.y
+            )
             handle.visual.rect = Rect(0, 0, newSize.x, newSize.y)
         else
             print("Warning: ResizableWindow - Invalid position or size for handle: " .. tostring(handleName))
@@ -467,11 +519,13 @@ function ResizableWindow:_updateResizeHandles()
 end
 
 --- Check if a point is within any resize handle
--- @tparam vec2 point - Point to test
+-- @tparam vec2 point - Point to test (in window-level coordinates)
 -- @treturn string|nil - Handle name if point is within a handle, nil otherwise
 function ResizableWindow:_getHandleAtPoint(point)
     if not self._config.resizable then return nil end
     
+    -- Note: point is already in window-level coordinates (from mouse events)
+    -- and handle containers are now created at window-level, so direct comparison works
     for handleName, handle in pairs(self._resizeHandles) do
         local rect = handle.container.rect
         if point.x >= rect.lower.x and point.x <= rect.upper.x and 
