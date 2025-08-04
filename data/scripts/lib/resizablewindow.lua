@@ -36,21 +36,22 @@ local PerformanceConfig = {
 
 -- Visual feedback configuration
 local VisualConfig = {
-    hoverColor = ColorARGB(0.4, 1, 1, 0),      -- Yellow on hover
-    activeColor = ColorARGB(0.6, 1, 0.5, 0),   -- Orange while dragging
-    defaultColor = ColorARGB(0.2, 0, 1, 0),    -- Green default
-    previewColor = ColorARGB(0.2, 0, 0.8, 1),  -- Blue preview outline
-    nearLimitColor = ColorARGB(0.3, 1, 0, 0),  -- Red when near size limits
+    hoverColor = ColorARGB(0.6, 1, 1, 0),      -- Yellow on hover (increased opacity)
+    activeColor = ColorARGB(0.8, 1, 0.5, 0),   -- Orange while dragging (increased opacity)
+    defaultColor = ColorARGB(0.5, 0, 1, 0),    -- Green default (increased opacity for debugging)
+    previewColor = ColorARGB(0.4, 0, 0.8, 1),  -- Blue preview outline (increased opacity)
+    nearLimitColor = ColorARGB(0.7, 1, 0, 0),  -- Red when near size limits (increased opacity)
+    debugColor = ColorARGB(0.8, 1, 0, 1),     -- Magenta for debug mode (high visibility)
     guideThickness = 2,
     pulseSpeed = 2.0
 }
 
 -- Configuration for resize handles
 local HandleConfig = {
-    size = 8,           -- Handle hit area size in pixels
-    margin = 4,         -- Margin from window edge
+    size = 12,          -- Handle hit area size in pixels (increased for better visibility)
+    margin = 2,         -- Margin from window edge (reduced to keep handles inside bounds)
     layer = 100,        -- High layer to stay above content
-    thickness = 1       -- Visual thickness (when visible)
+    thickness = 2       -- Visual thickness (when visible) - increased for better visibility
 }
 
 -- Validation helper for HandleTypes position functions
@@ -72,7 +73,8 @@ local HandleTypes = {
         cursor = "resize-nw",
         position = function(rect) 
             if not validateRect(rect, "topLeft") then return vec2(0, 0) end
-            return vec2(rect.lower.x - HandleConfig.margin, rect.lower.y - HandleConfig.margin) 
+            -- Position handle INSIDE window bounds at top-left corner
+            return vec2(rect.lower.x, rect.lower.y) 
         end,
         size = function() return vec2(HandleConfig.size, HandleConfig.size) end,
         resize = function(delta, startSize) return vec2(startSize.x - delta.x, startSize.y - delta.y) end,
@@ -82,7 +84,8 @@ local HandleTypes = {
         cursor = "resize-ne", 
         position = function(rect) 
             if not validateRect(rect, "topRight") then return vec2(0, 0) end
-            return vec2(rect.upper.x - HandleConfig.size + HandleConfig.margin, rect.lower.y - HandleConfig.margin) 
+            -- Position handle INSIDE window bounds at top-right corner
+            return vec2(rect.upper.x - HandleConfig.size, rect.lower.y) 
         end,
         size = function() return vec2(HandleConfig.size, HandleConfig.size) end,
         resize = function(delta, startSize) return vec2(startSize.x + delta.x, startSize.y - delta.y) end,
@@ -92,7 +95,8 @@ local HandleTypes = {
         cursor = "resize-sw",
         position = function(rect) 
             if not validateRect(rect, "bottomLeft") then return vec2(0, 0) end
-            return vec2(rect.lower.x - HandleConfig.margin, rect.upper.y - HandleConfig.size + HandleConfig.margin) 
+            -- Position handle INSIDE window bounds at bottom-left corner
+            return vec2(rect.lower.x, rect.upper.y - HandleConfig.size) 
         end,
         size = function() return vec2(HandleConfig.size, HandleConfig.size) end,
         resize = function(delta, startSize) return vec2(startSize.x - delta.x, startSize.y + delta.y) end,
@@ -102,7 +106,8 @@ local HandleTypes = {
         cursor = "resize-se",
         position = function(rect) 
             if not validateRect(rect, "bottomRight") then return vec2(0, 0) end
-            return vec2(rect.upper.x - HandleConfig.size + HandleConfig.margin, rect.upper.y - HandleConfig.size + HandleConfig.margin) 
+            -- Position handle INSIDE window bounds at bottom-right corner
+            return vec2(rect.upper.x - HandleConfig.size, rect.upper.y - HandleConfig.size) 
         end,
         size = function() return vec2(HandleConfig.size, HandleConfig.size) end,
         resize = function(delta, startSize) return vec2(startSize.x + delta.x, startSize.y + delta.y) end,
@@ -112,11 +117,13 @@ local HandleTypes = {
         cursor = "resize-n",
         position = function(rect) 
             if not validateRect(rect, "top") then return vec2(0, 0) end
-            return vec2(rect.lower.x + HandleConfig.margin, rect.lower.y - HandleConfig.margin) 
+            -- Position handle INSIDE window bounds at top edge
+            return vec2(rect.lower.x + HandleConfig.size, rect.lower.y) 
         end,
         size = function(rect) 
             if not validateRect(rect, "top") then return vec2(HandleConfig.size, HandleConfig.size) end
-            return vec2(rect.width - 2 * HandleConfig.margin, HandleConfig.size) 
+            -- Ensure edge handles don't overlap corner handles
+            return vec2(math.max(HandleConfig.size, rect.width - 4 * HandleConfig.size), HandleConfig.size) 
         end,
         resize = function(delta, startSize) return vec2(startSize.x, startSize.y - delta.y) end,
         reposition = function(delta, startPos) return vec2(startPos.x, startPos.y + delta.y) end
@@ -125,11 +132,13 @@ local HandleTypes = {
         cursor = "resize-s",
         position = function(rect) 
             if not validateRect(rect, "bottom") then return vec2(0, 0) end
-            return vec2(rect.lower.x + HandleConfig.margin, rect.upper.y - HandleConfig.size + HandleConfig.margin) 
+            -- Position handle INSIDE window bounds at bottom edge
+            return vec2(rect.lower.x + HandleConfig.size, rect.upper.y - HandleConfig.size) 
         end,
         size = function(rect) 
             if not validateRect(rect, "bottom") then return vec2(HandleConfig.size, HandleConfig.size) end
-            return vec2(rect.width - 2 * HandleConfig.margin, HandleConfig.size) 
+            -- Ensure edge handles don't overlap corner handles
+            return vec2(math.max(HandleConfig.size, rect.width - 4 * HandleConfig.size), HandleConfig.size) 
         end,
         resize = function(delta, startSize) return vec2(startSize.x, startSize.y + delta.y) end,
         reposition = function(delta, startPos) return startPos end
@@ -138,11 +147,13 @@ local HandleTypes = {
         cursor = "resize-w",
         position = function(rect) 
             if not validateRect(rect, "left") then return vec2(0, 0) end
-            return vec2(rect.lower.x - HandleConfig.margin, rect.lower.y + HandleConfig.margin) 
+            -- Position handle INSIDE window bounds at left edge
+            return vec2(rect.lower.x, rect.lower.y + HandleConfig.size) 
         end,
         size = function(rect) 
             if not validateRect(rect, "left") then return vec2(HandleConfig.size, HandleConfig.size) end
-            return vec2(HandleConfig.size, rect.height - 2 * HandleConfig.margin) 
+            -- Ensure edge handles don't overlap corner handles
+            return vec2(HandleConfig.size, math.max(HandleConfig.size, rect.height - 4 * HandleConfig.size)) 
         end,
         resize = function(delta, startSize) return vec2(startSize.x - delta.x, startSize.y) end,
         reposition = function(delta, startPos) return vec2(startPos.x + delta.x, startPos.y) end
@@ -151,11 +162,13 @@ local HandleTypes = {
         cursor = "resize-e",
         position = function(rect) 
             if not validateRect(rect, "right") then return vec2(0, 0) end
-            return vec2(rect.upper.x - HandleConfig.size + HandleConfig.margin, rect.lower.y + HandleConfig.margin) 
+            -- Position handle INSIDE window bounds at right edge
+            return vec2(rect.upper.x - HandleConfig.size, rect.lower.y + HandleConfig.size) 
         end,
         size = function(rect) 
             if not validateRect(rect, "right") then return vec2(HandleConfig.size, HandleConfig.size) end
-            return vec2(HandleConfig.size, rect.height - 2 * HandleConfig.margin) 
+            -- Ensure edge handles don't overlap corner handles
+            return vec2(HandleConfig.size, math.max(HandleConfig.size, rect.height - 4 * HandleConfig.size)) 
         end,
         resize = function(delta, startSize) return vec2(startSize.x + delta.x, startSize.y) end,
         reposition = function(delta, startPos) return startPos end
@@ -247,6 +260,34 @@ function ResizableWindow.new(namespace, parent, rect, options)
     return instance
 end
 
+--- Get count of successfully created handles (for debugging)
+-- @treturn number - Number of handles created
+function ResizableWindow:_getHandleCount()
+    local count = 0
+    for _ in pairs(self._resizeHandles) do
+        count = count + 1
+    end
+    return count
+end
+
+--- Force refresh all handle visuals (for debugging)
+function ResizableWindow:_refreshAllHandleVisuals()
+    print("[ResizableWindow] Refreshing all handle visuals. showHandles = " .. tostring(self._config.showHandles))
+    for handleName, handle in pairs(self._resizeHandles) do
+        if handle.visual then
+            self:_updateHandleVisuals(handleName, "default")
+        end
+    end
+end
+
+--- Toggle handle visibility for debugging
+-- @tparam boolean visible - Whether handles should be visible
+function ResizableWindow:setHandleVisibility(visible)
+    print("[ResizableWindow] Setting handle visibility to: " .. tostring(visible))
+    self._config.showHandles = visible
+    self:_refreshAllHandleVisuals()
+end
+
 --- Initialize preview system for visual feedback during resize
 function ResizableWindow:_initializePreviewSystem()
     if not self._config.showPreview then return end
@@ -316,20 +357,46 @@ function ResizableWindow:_initializeResizeHandles()
         return
     end
     
+    print("[ResizableWindow] Initializing resize handles for window rect: " .. tostring(windowRect.lower) .. " to " .. tostring(windowRect.upper))
+    print("[ResizableWindow] showHandles = " .. tostring(self._config.showHandles))
+    
     -- Create resize handles for each position
     for handleName, handleDef in pairs(HandleTypes) do
         local handlePos = handleDef.position(windowRect)
         local handleSize = handleDef.size(windowRect) or handleDef.size()
+        
+        -- Validate handle positioning
+        if not handlePos or not handleSize or handleSize.x <= 0 or handleSize.y <= 0 then
+            print("Error: ResizableWindow - Invalid handle dimensions for " .. handleName .. ": pos=" .. tostring(handlePos) .. ", size=" .. tostring(handleSize))
+            goto continue
+        end
+        
         local handleRect = Rect(handlePos.x, handlePos.y, handlePos.x + handleSize.x, handlePos.y + handleSize.y)
         
-        -- Create invisible container for the handle
+        print("[ResizableWindow] Creating handle '" .. handleName .. "' at " .. tostring(handlePos) .. " size " .. tostring(handleSize))
+        
+        -- Create container for the handle with validation
         local handleContainer = self._parent:createContainer(handleRect)
+        if not handleContainer then
+            print("Error: ResizableWindow - Failed to create container for handle: " .. handleName)
+            goto continue
+        end
+        
         handleContainer.layer = HandleConfig.layer
         
-        -- Create visual indicator (invisible by default, can be enabled for debugging)
-        local handleVisual = handleContainer:createRect(Rect(0, 0, handleSize.x, handleSize.y), ColorARGB(0, 1, 1, 1))
+        -- Create visual indicator with proper initial state
+        local initialColor = ColorARGB(0, 1, 1, 1) -- Invisible by default
         if self._config.showHandles then
-            handleVisual.color = ColorARGB(0.3, 0, 1, 0) -- Semi-transparent green for debugging
+            initialColor = VisualConfig.debugColor -- High visibility for debugging
+        end
+        
+        local handleVisual = handleContainer:createRect(Rect(0, 0, handleSize.x, handleSize.y), initialColor)
+        if not handleVisual then
+            print("Error: ResizableWindow - Failed to create visual for handle: " .. handleName)
+            if handleContainer then
+                handleContainer:destroy()
+            end
+            goto continue
         end
         
         -- Store handle information
@@ -343,7 +410,16 @@ function ResizableWindow:_initializeResizeHandles()
             hoverStartTime = 0,
             lastVisualUpdate = 0
         }
+        
+        -- CRITICAL: Initialize visual state immediately after creation
+        self:_updateHandleVisuals(handleName, "default")
+        
+        print("[ResizableWindow] Successfully created handle '" .. handleName .. "' with color " .. tostring(handleVisual.color))
+        
+        ::continue::
     end
+    
+    print("[ResizableWindow] Resize handles initialization complete. Created " .. self:_getHandleCount() .. " handles.")
 end
 
 --- Register this window for global mouse event handling
@@ -649,7 +725,15 @@ end
 -- @tparam string state - Visual state: "default", "hover", "active", "nearLimit"
 function ResizableWindow:_updateHandleVisuals(handleName, state)
     local handle = self._resizeHandles[handleName]
-    if not handle or not self._config.showHandles then return end
+    if not handle then 
+        print("Warning: ResizableWindow - Handle '" .. tostring(handleName) .. "' not found for visual update")
+        return 
+    end
+    
+    if not handle.visual then
+        print("Warning: ResizableWindow - Handle '" .. handleName .. "' has no visual component")
+        return
+    end
     
     local currentTime = appTimeSeconds()
     local color
@@ -673,11 +757,22 @@ function ResizableWindow:_updateHandleVisuals(handleName, state)
         
     else -- default
         handle.hovered = false
-        color = VisualConfig.defaultColor
+        if self._config.showHandles then
+            color = VisualConfig.debugColor -- Use debug color when handles should be visible
+        else
+            color = ColorARGB(0, 1, 1, 1) -- Invisible when showHandles is false
+        end
     end
     
-    handle.visual.color = color
-    handle.lastVisualUpdate = currentTime
+    -- Apply color with validation
+    if handle.visual and color then
+        handle.visual.color = color
+        handle.lastVisualUpdate = currentTime
+        
+        print("[ResizableWindow] Updated handle '" .. handleName .. "' visual state to '" .. state .. "' with color " .. tostring(color))
+    else
+        print("Error: ResizableWindow - Failed to update handle '" .. handleName .. "' visual: visual=" .. tostring(handle.visual) .. ", color=" .. tostring(color))
+    end
 end
 
 --- Interpolate between two colors
