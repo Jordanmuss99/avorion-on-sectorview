@@ -179,14 +179,20 @@ function ResizableWindow.new(namespace, parent, rect, options)
         error("ResizableWindow: CustomTabbedWindow creation failed")
     end
     
-    -- Validate rect property is accessible immediately (fail-fast pattern)
-    local rect = tabbedWindow.rect
-    if not rect then
-        error("ResizableWindow: CustomTabbedWindow rect not available")
+    -- Validate rect property is accessible safely (avoid AzimuthLib recursive property bug)
+    local rect
+    local rectSuccess, rectResult = pcall(function()
+        return tabbedWindow._contentRect or tabbedWindow.rect
+    end)
+    
+    if rectSuccess and rectResult then
+        rect = rectResult
+    else
+        error("ResizableWindow: CustomTabbedWindow rect not available - " .. tostring(rectResult))
     end
     
     -- Validate rect has required properties (fail-fast pattern)
-    if not rect.lower or not rect.upper or not rect.width or not rect.height then
+    if not rect or not rect.lower or not rect.upper or not rect.width or not rect.height then
         error("ResizableWindow: Invalid rect properties")
     end
 
@@ -739,6 +745,19 @@ ResizableWindow.__index = function(self, key)
     local value = rawget(ResizableWindow, key)
     if value ~= nil then
         return value
+    end
+    
+    -- Handle rect property safely to avoid AzimuthLib recursive access bug
+    if key == "rect" then
+        local success, result = pcall(function()
+            return self._tabbedWindow._contentRect or self._tabbedWindow[key]
+        end)
+        if success then
+            return result
+        else
+            print("Warning: ResizableWindow rect access failed: " .. tostring(result))
+            return nil
+        end
     end
     
     -- Forward to underlying tabbedWindow

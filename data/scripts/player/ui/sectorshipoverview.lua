@@ -1,6 +1,7 @@
 include("callable")
 include("azimuthlib-uiproportionalsplitter")
 local Azimuth = include("azimuthlib-basic")
+local CustomTabbedWindow = include("azimuthlib-customtabbedwindow")
 local ResizableWindow = include("resizablewindow")
 
 local SectorOverviewConfig -- client/server
@@ -139,8 +140,24 @@ Object name color represents relation status (war, ceasefire, neutral, allies)]]
     else
         -- Fallback to CustomTabbedWindow if ResizableWindow fails
         print("ResizableWindow initialization failed, falling back to CustomTabbedWindow: " .. tostring(result))
-        sectorOverview_tabbedWindow = CustomTabbedWindow(self, self.window, Rect(vec2(10, 10), size - 10))
-        sectorOverview_tabbedWindow.onSelectedFunction = "refreshList"
+        
+        -- Ensure CustomTabbedWindow is available
+        if not CustomTabbedWindow then
+            error("CustomTabbedWindow not available - missing include statement")
+        end
+        
+        -- Create CustomTabbedWindow with error handling
+        local fallbackSuccess, fallbackResult = pcall(function()
+            return CustomTabbedWindow(self, self.window, Rect(vec2(10, 10), size - 10))
+        end)
+        
+        if fallbackSuccess and fallbackResult then
+            sectorOverview_tabbedWindow = fallbackResult
+            sectorOverview_tabbedWindow.onSelectedFunction = "refreshList"
+            print("CustomTabbedWindow fallback initialized successfully")
+        else
+            error("Both ResizableWindow and CustomTabbedWindow initialization failed: " .. tostring(fallbackResult))
+        end
     end
 
     -- stations
