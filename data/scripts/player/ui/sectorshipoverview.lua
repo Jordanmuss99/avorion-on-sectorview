@@ -1152,6 +1152,9 @@ function SectorShipOverview.sectorOverview_refreshGoodsList()
     local sellColor = ColorRGB(0.8, 0.8, 1)
 
     local renderer = UIRenderer()
+    
+    -- Calculate maximum columns available (0-based indexing)
+    local maxColumns = sectorOverview_goodsList.columns - 1
 
     for _, entry in pairs(stationList.entries) do
         local entity = entry.entity
@@ -1173,7 +1176,10 @@ function SectorShipOverview.sectorOverview_refreshGoodsList()
             sectorOverview_goodsList:addRow(entity.id.string)
             sectorOverview_goodsList:setEntry(0, sectorOverview_goodsList.rows - 1, entry.icon, false, false, white, sectorOverview_goodsList.width - 2 * self.iconColumnWidth)
             sectorOverview_goodsList:setEntry(1, sectorOverview_goodsList.rows - 1, entry.name, false, false, color, sectorOverview_goodsList.width - 2 * self.iconColumnWidth)
-            sectorOverview_goodsList:setEntry(11, sectorOverview_goodsList.rows - 1, entry.group, false, false, white, sectorOverview_goodsList.width - 2 * self.iconColumnWidth)
+            
+            -- Bounds check for group column (was using hardcoded 11)
+            local groupColumn = math.min(11, maxColumns)
+            sectorOverview_goodsList:setEntry(groupColumn, sectorOverview_goodsList.rows - 1, entry.group, false, false, white, sectorOverview_goodsList.width - 2 * self.iconColumnWidth)
             sectorOverview_goodsList:setEntryType(0, sectorOverview_goodsList.rows - 1, ListBoxEntryType.PixelIcon)
 
             local supplyIcons = {}
@@ -1202,13 +1208,16 @@ function SectorShipOverview.sectorOverview_refreshGoodsList()
 
             for i = 1, length do
                 local demandColumn = column + 6
-                if i < #supplyIcons + 1 then
+                
+                -- Bounds checking for supply column
+                if i < #supplyIcons + 1 and column <= maxColumns then
                     sectorOverview_goodsList:setEntry(column, sectorOverview_goodsList.rows - 1, supplyIcons[i], false, false, sellColor, 0)
                     sectorOverview_goodsList:setEntryType(column, sectorOverview_goodsList.rows - 1, ListBoxEntryType.Icon)
                     sectorOverview_goodsList:setEntryTooltip(column, sectorOverview_goodsList.rows - 1, supplyTooltips[i])
                 end
 
-                if i < #demandIcons + 1 then
+                -- Bounds checking for demand column
+                if i < #demandIcons + 1 and demandColumn <= maxColumns then
                     sectorOverview_goodsList:setEntry(demandColumn, sectorOverview_goodsList.rows - 1, demandIcons[i], false, false, buyColor, 0)
                     sectorOverview_goodsList:setEntryType(demandColumn, sectorOverview_goodsList.rows - 1, ListBoxEntryType.Icon)
                     sectorOverview_goodsList:setEntryTooltip(demandColumn, sectorOverview_goodsList.rows - 1, demandTooltips[i])
@@ -1242,6 +1251,9 @@ function SectorShipOverview.sectorOverview_refreshCrewList()
 
     local white = ColorRGB(1, 1, 1)
     local renderer = UIRenderer()
+    
+    -- Calculate maximum columns available (0-based indexing)
+    local maxColumns = sectorOverview_crewList.columns - 1
 
     -- Use global shared captain icon registry for cross-mod compatibility
     -- If no registry exists, we become the baseline provider for all mods that don't define their own captain icons
@@ -1346,23 +1358,28 @@ function SectorShipOverview.sectorOverview_refreshCrewList()
             sectorOverview_crewList:setEntry(1, sectorOverview_crewList.rows - 1, entry.name, false, false, color, sectorOverview_crewList.width - 2 * self.iconColumnWidth)
             sectorOverview_crewList:setEntryType(1, sectorOverview_crewList.rows - 1, ListBoxEntryType.Text)
 
-            sectorOverview_crewList:setEntry(11, sectorOverview_crewList.rows - 1, entry.group, false, false, white, sectorOverview_crewList.width - 2 * self.iconColumnWidth)
+            -- Bounds check for group column (was using hardcoded 11)
+            local groupColumn = math.min(11, maxColumns)
+            sectorOverview_crewList:setEntry(groupColumn, sectorOverview_crewList.rows - 1, entry.group, false, false, white, sectorOverview_crewList.width - 2 * self.iconColumnWidth)
 
             sectorOverview_crewList:addRow(entity.id.string)
             for i = 1, #icons do
-                if i == 1 then
-                    if captain then
-                        sectorOverview_crewList:setEntry(i, sectorOverview_crewList.rows - 1, captainIcons[i].path, false, false, captainIcons[i].color, 0)
-                    else
-                        sectorOverview_crewList:setEntry(i, sectorOverview_crewList.rows - 1, "data/textures/icons/nothing.png", false, false, white, 0)
-                    end
+                -- Bounds checking for all icon columns
+                if i <= maxColumns then
+                    if i == 1 then
+                        if captain then
+                            sectorOverview_crewList:setEntry(i, sectorOverview_crewList.rows - 1, captainIcons[i].path, false, false, captainIcons[i].color, 0)
+                        else
+                            sectorOverview_crewList:setEntry(i, sectorOverview_crewList.rows - 1, "data/textures/icons/nothing.png", false, false, white, 0)
+                        end
 
-                    sectorOverview_crewList:setEntryType(i, sectorOverview_crewList.rows - 1, ListBoxEntryType.Icon)
-                    sectorOverview_crewList:setEntryTooltip(i, sectorOverview_crewList.rows - 1, captainTooltip)
-                else
-                    sectorOverview_crewList:setEntry(i, sectorOverview_crewList.rows - 1, icons[i], false, false, white, 0)
-                    sectorOverview_crewList:setEntryType(i, sectorOverview_crewList.rows - 1, ListBoxEntryType.Icon)
-                    sectorOverview_crewList:setEntryTooltip(i, sectorOverview_crewList.rows - 1, tooltips[i])
+                        sectorOverview_crewList:setEntryType(i, sectorOverview_crewList.rows - 1, ListBoxEntryType.Icon)
+                        sectorOverview_crewList:setEntryTooltip(i, sectorOverview_crewList.rows - 1, captainTooltip)
+                    else
+                        sectorOverview_crewList:setEntry(i, sectorOverview_crewList.rows - 1, icons[i], false, false, white, 0)
+                        sectorOverview_crewList:setEntryType(i, sectorOverview_crewList.rows - 1, ListBoxEntryType.Icon)
+                        sectorOverview_crewList:setEntryTooltip(i, sectorOverview_crewList.rows - 1, tooltips[i])
+                    end
                 end
             end
         end
@@ -1391,6 +1408,9 @@ function SectorShipOverview.sectorOverview_refreshMissionList()
 
     local white = ColorRGB(1, 1, 1)
     local renderer = UIRenderer()
+    
+    -- Calculate maximum columns available (0-based indexing)
+    local maxColumns = sectorOverview_missionList.columns - 1
 
     local stationsProcessed = 0
     local stationsWithMissions = 0
@@ -1438,14 +1458,20 @@ function SectorShipOverview.sectorOverview_refreshMissionList()
             sectorOverview_missionList:addRow(entity.id.string)
             sectorOverview_missionList:setEntry(0, sectorOverview_missionList.rows - 1, entry.icon, false, false, white, sectorOverview_missionList.width - 2 * self.iconColumnWidth)
             sectorOverview_missionList:setEntry(1, sectorOverview_missionList.rows - 1, entry.name, false, false, color, sectorOverview_missionList.width - 2 * self.iconColumnWidth)
-            sectorOverview_missionList:setEntry(11, sectorOverview_missionList.rows - 1, entry.group, false, false, white, sectorOverview_missionList.width - 2 * self.iconColumnWidth)
+            
+            -- Bounds check for group column (was using hardcoded 11)
+            local groupColumn = math.min(11, maxColumns)
+            sectorOverview_missionList:setEntry(groupColumn, sectorOverview_missionList.rows - 1, entry.group, false, false, white, sectorOverview_missionList.width - 2 * self.iconColumnWidth)
             sectorOverview_missionList:setEntryType(0, sectorOverview_missionList.rows - 1, ListBoxEntryType.PixelIcon)
 
             sectorOverview_missionList:addRow(entity.id.string)
             for i = 1, #icons do
-                sectorOverview_missionList:setEntry(i, sectorOverview_missionList.rows - 1, icons[i], false, false, missions[i].iconColor or white, 0)
-                sectorOverview_missionList:setEntryType(i, sectorOverview_missionList.rows - 1, ListBoxEntryType.Icon)
-                sectorOverview_missionList:setEntryTooltip(i, sectorOverview_missionList.rows - 1, tooltips[i])
+                -- Bounds checking for mission icon columns
+                if i <= maxColumns then
+                    sectorOverview_missionList:setEntry(i, sectorOverview_missionList.rows - 1, icons[i], false, false, missions[i].iconColor or white, 0)
+                    sectorOverview_missionList:setEntryType(i, sectorOverview_missionList.rows - 1, ListBoxEntryType.Icon)
+                    sectorOverview_missionList:setEntryTooltip(i, sectorOverview_missionList.rows - 1, tooltips[i])
+                end
             end
         end
 
