@@ -188,7 +188,12 @@ function ResizableWindow.new(namespace, parent, rect, options)
     if rectSuccess and rectResult then
         rect = rectResult
     else
-        error("ResizableWindow: CustomTabbedWindow rect not available - " .. tostring(rectResult))
+        local errorMsg = "ResizableWindow: CustomTabbedWindow rect not available"
+        if rectResult then
+            errorMsg = errorMsg .. " - " .. tostring(rectResult)
+        end
+        errorMsg = errorMsg .. ". This indicates an AzimuthLib CustomTabbedWindow recursive property access bug."
+        error(errorMsg)
     end
     
     -- Validate rect has required properties (fail-fast pattern)
@@ -285,10 +290,31 @@ function ResizableWindow:_initializeVisualGuides()
     }
 end
 
+--- Safe rect access helper to avoid AzimuthLib CustomTabbedWindow recursive property bug
+-- @treturn Rect|nil - Window rect or nil if access fails
+function ResizableWindow:_getSafeRect()
+    local success, result = pcall(function()
+        -- Try _contentRect first (internal property), then fallback to rect property
+        return self._tabbedWindow._contentRect or self._tabbedWindow.rect
+    end)
+    
+    if success and result and result.lower and result.upper then
+        return result
+    else
+        print("Warning: ResizableWindow - Safe rect access failed: " .. tostring(result))
+        return nil
+    end
+end
+
 
 --- Initialize resize handles for the window
 function ResizableWindow:_initializeResizeHandles()
-    local windowRect = self._tabbedWindow.rect
+    -- Use safe rect access to avoid AzimuthLib recursive property bug
+    local windowRect = self:_getSafeRect()
+    if not windowRect then
+        print("Error: ResizableWindow - Cannot initialize resize handles, window rect unavailable")
+        return
+    end
     
     -- Create resize handles for each position
     for handleName, handleDef in pairs(HandleTypes) do
@@ -337,16 +363,34 @@ end
 function ResizableWindow:_updateResizeHandles()
     if not self._config.resizable or not self._resizeHandles then return end
 
-    local windowRect = self._tabbedWindow.rect
+    -- Use safe rect access to avoid AzimuthLib recursive property bug
+    local windowRect = self:_getSafeRect()
+    if not windowRect then
+        print("Warning: ResizableWindow - Cannot update resize handles, window rect unavailable")
+        return
+    end
 
     for handleName, handle in pairs(self._resizeHandles) do
+        -- Additional safety check for handle validity
+        if not handle or not handle.definition or not handle.container then
+            print("Warning: ResizableWindow - Invalid handle data for: " .. tostring(handleName))
+            goto continue
+        end
+        
         local handleDef = handle.definition
         local newPos = handleDef.position(windowRect)
         local newSize = handleDef.size(windowRect) or handleDef.size()
 
-        -- Update handle container position and size
-        handle.container.rect = Rect(newPos.x, newPos.y, newPos.x + newSize.x, newPos.y + newSize.y)
-        handle.visual.rect = Rect(0, 0, newSize.x, newSize.y)
+        -- Validate position and size before applying
+        if newPos and newSize and newPos.x and newPos.y and newSize.x and newSize.y then
+            -- Update handle container position and size
+            handle.container.rect = Rect(newPos.x, newPos.y, newPos.x + newSize.x, newPos.y + newSize.y)
+            handle.visual.rect = Rect(0, 0, newSize.x, newSize.y)
+        else
+            print("Warning: ResizableWindow - Invalid position or size for handle: " .. tostring(handleName))
+        end
+        
+        ::continue::
     end
 end
 
@@ -453,6 +497,13 @@ end
 -- @tparam string handleName - Name of the handle being dragged
 -- @tparam vec2 mousePos - Current mouse position
 function ResizableWindow:_startResize(handleName, mousePos)
+    -- Validate window rect is accessible before starting resize
+    local windowRect = self:_getSafeRect()
+    if not windowRect then
+        print("Error: ResizableWindow - Cannot start resize, window rect unavailable")
+        return
+    end
+    
     -- Capture mouse to prevent loss of focus
     if Mouse and Mouse.capture then
         Mouse.capture(true)
@@ -749,15 +800,7 @@ ResizableWindow.__index = function(self, key)
     
     -- Handle rect property safely to avoid AzimuthLib recursive access bug
     if key == "rect" then
-        local success, result = pcall(function()
-            return self._tabbedWindow._contentRect or self._tabbedWindow[key]
-        end)
-        if success then
-            return result
-        else
-            print("Warning: ResizableWindow rect access failed: " .. tostring(result))
-            return nil
-        end
+        return self:_getSafeRect()
     end
     
     -- Forward to underlying tabbedWindow
@@ -766,13 +809,20 @@ end
 
 ResizableWindow.__newindex = function(self, key, value)
     -- Intercept rect changes to update handles
-    if key == "rect" and self._config.resizable then
+    if key == "rect" and self._config and self._config.resizable then
+        -- Use safe assignment for rect property
+        local success, error = pcall(function()
+            self._tabbedWindow[key] = value
+        end)
+        if success then
+            self:_updateResizeHandles()
+        else
+            print("Warning: ResizableWindow - Failed to set rect property: " .. tostring(error))
+        end
+    elseif key == "size" and self._config and self._config.resizable then
         self._tabbedWindow[key] = value
         self:_updateResizeHandles()
-    elseif key == "size" and self._config.resizable then
-        self._tabbedWindow[key] = value
-        self:_updateResizeHandles()
-    elseif key == "position" and self._config.resizable then
+    elseif key == "position" and self._config and self._config.resizable then
         self._tabbedWindow[key] = value
         self:_updateResizeHandles()
     else
