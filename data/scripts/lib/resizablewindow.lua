@@ -589,7 +589,7 @@ function ResizableWindow:_startResize(handleName, mousePos)
     resizeState.startSize = self._tabbedWindow.size
     resizeState.startWindowPos = self._tabbedWindow.position
     resizeState.mode = "capturing"
-    resizeState.lastUpdateTime = appTimeSeconds()
+    resizeState.lastUpdateTime = appTime()
     resizeState.previewSize = self._tabbedWindow.size
     resizeState.previewPos = self._tabbedWindow.position
     
@@ -610,7 +610,7 @@ end
 function ResizableWindow:_updateResize(mousePos)
     if not resizeState.active or resizeState.window ~= self then return end
     
-    local currentTime = appTimeSeconds()
+    local currentTime = appTime()
     
     -- Performance throttling - limit update rate
     local timeSinceLastUpdate = currentTime - resizeState.lastUpdateTime
@@ -735,7 +735,7 @@ function ResizableWindow:_updateHandleVisuals(handleName, state)
         return
     end
     
-    local currentTime = appTimeSeconds()
+    local currentTime = appTime()
     local color
     
     if state == "hover" then
@@ -956,7 +956,7 @@ end
 
 function onMouseMove(x, y)
     local mousePos = vec2(x, y)
-    local currentTime = appTimeSeconds()
+    local currentTime = appTime()
     
     -- Handle active resize with throttling
     if resizeState.active and resizeState.window then
