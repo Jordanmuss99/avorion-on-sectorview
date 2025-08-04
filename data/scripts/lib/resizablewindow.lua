@@ -351,12 +351,8 @@ function ResizableWindow:_registerForMouseEvents()
     -- Add to global registry
     resizableWindows[#resizableWindows + 1] = self
     
-    -- Register global mouse callbacks in namespace if not already present
-    if not self._namespace.resizableWindow_onMousePressed then
-        self._namespace.resizableWindow_onMousePressed = onMousePressed
-        self._namespace.resizableWindow_onMouseMove = onMouseMove  
-        self._namespace.resizableWindow_onMouseReleased = onMouseReleased
-    end
+    -- Note: Global mouse callbacks are now handled by the calling script
+    -- through ResizableWindow.handleGlobalMouse* functions
 end
 
 --- Update resize handle positions when window rect changes
@@ -836,6 +832,7 @@ function onMousePressed(x, y, button)
     if button ~= 1 then return end -- Only handle left mouse button
     
     local mousePos = vec2(x, y)
+    print("[ResizableWindow] onMousePressed: " .. #resizableWindows .. " windows registered")
     
     -- Handle potential mouse capture loss from previous operations
     for _, window in ipairs(resizableWindows) do
@@ -850,7 +847,9 @@ function onMousePressed(x, y, button)
         local window = resizableWindows[i]
         if window._config.resizable then
             local handle = window:_getHandleAtPoint(mousePos)
+            print("[ResizableWindow] Window " .. i .. " handle check: " .. tostring(handle))
             if handle then
+                print("[ResizableWindow] Starting resize with handle: " .. handle)
                 window:_startResize(handle, mousePos)
                 return true -- Indicate event was handled
             end
@@ -991,9 +990,43 @@ function onResizableWindowEmergencyCleanup()
     end
 end
 
+-- Global mouse event handlers that can be called from script global functions
+-- These provide the bridge between Avorion's global mouse system and ResizableWindow instances
+
+--- Global mouse pressed handler to be called from script's onMousePressed
+-- @tparam number x - Mouse X coordinate
+-- @tparam number y - Mouse Y coordinate  
+-- @tparam number button - Mouse button (1 = left, 2 = right, etc.)
+-- @treturn boolean - True if event was handled, false otherwise
+function ResizableWindow.handleGlobalMousePressed(x, y, button)
+    print("[ResizableWindow] Global mouse pressed at (" .. x .. ", " .. y .. ") button " .. button)
+    return onMousePressed(x, y, button)
+end
+
+--- Global mouse move handler to be called from script's onMouseMove
+-- @tparam number x - Mouse X coordinate
+-- @tparam number y - Mouse Y coordinate
+-- @treturn boolean - True if event was handled, false otherwise
+function ResizableWindow.handleGlobalMouseMove(x, y)
+    return onMouseMove(x, y)
+end
+
+--- Global mouse released handler to be called from script's onMouseReleased
+-- @tparam number x - Mouse X coordinate
+-- @tparam number y - Mouse Y coordinate
+-- @tparam number button - Mouse button (1 = left, 2 = right, etc.)
+-- @treturn boolean - True if event was handled, false otherwise
+function ResizableWindow.handleGlobalMouseReleased(x, y, button)
+    return onMouseReleased(x, y, button)
+end
+
 --- Factory function following AzimuthLib pattern
 local function new(namespace, parent, rect, options)
     return ResizableWindow.new(namespace, parent, rect, options)
 end
 
-return setmetatable({new = new}, {__call = function(_, ...) return new(...) end})
+return setmetatable({new = new, 
+    handleGlobalMousePressed = ResizableWindow.handleGlobalMousePressed,
+    handleGlobalMouseMove = ResizableWindow.handleGlobalMouseMove,
+    handleGlobalMouseReleased = ResizableWindow.handleGlobalMouseReleased
+}, {__call = function(_, ...) return new(...) end})

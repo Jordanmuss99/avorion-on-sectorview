@@ -4,6 +4,43 @@ local Azimuth = include("azimuthlib-basic")
 local CustomTabbedWindow = include("azimuthlib-customtabbedwindow")
 local ResizableWindow = include("resizablewindow")
 
+-- Global mouse event handlers for ResizableWindow system
+-- These are required because Avorion only calls global functions, not table methods
+function onMousePressed(x, y, button)
+    print("[SectorShipOverview] onMousePressed called at (" .. x .. ", " .. y .. ") button " .. button)
+    -- Delegate to ResizableWindow global handler if it exists
+    if ResizableWindow and ResizableWindow.handleGlobalMousePressed then
+        local handled = ResizableWindow.handleGlobalMousePressed(x, y, button)
+        print("[SectorShipOverview] ResizableWindow handled: " .. tostring(handled))
+        if handled then
+            return true
+        end
+    end
+    return false
+end
+
+function onMouseMove(x, y)
+    -- Delegate to ResizableWindow global handler if it exists
+    if ResizableWindow and ResizableWindow.handleGlobalMouseMove then
+        local handled = ResizableWindow.handleGlobalMouseMove(x, y)
+        if handled then
+            return true
+        end
+    end
+    return false
+end
+
+function onMouseReleased(x, y, button)
+    -- Delegate to ResizableWindow global handler if it exists
+    if ResizableWindow and ResizableWindow.handleGlobalMouseReleased then
+        local handled = ResizableWindow.handleGlobalMouseReleased(x, y, button)
+        if handled then
+            return true
+        end
+    end
+    return false
+end
+
 local SectorOverviewConfig -- client/server
 local sectorOverview_notifyAboutEnemies -- server
 local sectorOverview_configOptions, sectorOverview_isVisible, sectorOverview_refreshCounter, sectorOverview_settingsModified, sectorOverview_playerAddedList, sectorOverview_playerCoords, sectorOverview_GT135 -- client
@@ -85,6 +122,7 @@ function SectorShipOverview.initialize() -- overridden
       ["MaxWindowWidth"] = {1600, round = -1, min = 800, max = 2400, comment = "Maximum window width when resizing"},
       ["MaxWindowHeight"] = {1200, round = -1, min = 600, max = 1800, comment = "Maximum window height when resizing"},
       ["ConstrainToScreen"] = {true, comment = "Constrain window size to screen dimensions"},
+      ["ShowResizeHandles"] = {true, comment = "Show resize handles for debugging (normally invisible)"},
       ["SnapToSize"] = {true, comment = "Snap to common window sizes during resize"},
       ["ShowResizePreview"] = {false, comment = "Show preview outline when resizing (for debugging)"}
     }
@@ -128,7 +166,7 @@ Object name color represents relation status (war, ceasefire, neutral, allies)]]
         constrainToScreen = SectorOverviewConfig.ConstrainToScreen ~= false,
         snapToSize = SectorOverviewConfig.SnapToSize ~= false,
         showPreview = SectorOverviewConfig.ShowResizePreview or false,
-        showHandles = false -- Keep handles invisible for production
+        showHandles = SectorOverviewConfig.ShowResizeHandles or false -- Enable for debugging resize issues
     }
     
     -- Try to create ResizableWindow with fallback to CustomTabbedWindow
@@ -145,7 +183,7 @@ Object name color represents relation status (war, ceasefire, neutral, allies)]]
             self.sectorOverview_onWindowResized(newSize)
         end
         
-        print("ResizableWindow initialized successfully")
+        print("ResizableWindow initialized successfully with handles visible: " .. tostring(result._config.showHandles))
     else
         -- Fallback to CustomTabbedWindow if ResizableWindow fails
         print("ResizableWindow initialization failed, falling back to CustomTabbedWindow: " .. tostring(result))
