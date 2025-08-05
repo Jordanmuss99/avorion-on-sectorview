@@ -8,6 +8,9 @@ local ResizableWindow = include("resizablewindow")
 -- These are required because Avorion only calls global functions, not table methods
 function onMousePressed(x, y, button)
     print("[SectorShipOverview] onMousePressed called at (" .. x .. ", " .. y .. ") button " .. button)
+    print("[SectorShipOverview] ResizableWindow available: " .. tostring(ResizableWindow ~= nil))
+    print("[SectorShipOverview] ResizableWindow.handleGlobalMousePressed available: " .. tostring(ResizableWindow and ResizableWindow.handleGlobalMousePressed ~= nil))
+    
     -- Delegate to ResizableWindow global handler if it exists
     if ResizableWindow and ResizableWindow.handleGlobalMousePressed then
         local handled = ResizableWindow.handleGlobalMousePressed(x, y, button)
@@ -31,9 +34,11 @@ function onMouseMove(x, y)
 end
 
 function onMouseReleased(x, y, button)
-    -- Delegate to ResizableWindow global handler if it exists
+    print("[SectorShipOverview] onMouseReleased called at (" .. x .. ", " .. y .. ") button " .. button)
+    -- Delegate to ResizableWindow global handler if it exists  
     if ResizableWindow and ResizableWindow.handleGlobalMouseReleased then
         local handled = ResizableWindow.handleGlobalMouseReleased(x, y, button)
+        print("[SectorShipOverview] ResizableWindow handled release: " .. tostring(handled))
         if handled then
             return true
         end

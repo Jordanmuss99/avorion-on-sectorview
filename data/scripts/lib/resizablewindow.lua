@@ -481,15 +481,41 @@ end
 -- @tparam vec2 point - Point to test
 -- @treturn string|nil - Handle name if point is within a handle, nil otherwise
 function ResizableWindow:_getHandleAtPoint(point)
-    if not self._config.resizable then return nil end
+    if not self._config.resizable then 
+        print("[ResizableWindow] _getHandleAtPoint: Window not resizable")
+        return nil 
+    end
+    
+    print("[ResizableWindow] _getHandleAtPoint: Testing point (" .. point.x .. ", " .. point.y .. ")")
+    print("[ResizableWindow] _getHandleAtPoint: Number of handles: " .. self:_getHandleCount())
     
     for handleName, handle in pairs(self._resizeHandles) do
+        if not handle or not handle.container then
+            print("[ResizableWindow] _getHandleAtPoint: Handle '" .. handleName .. "' missing container")
+            goto continue
+        end
+        
         local rect = handle.container.rect
+        if not rect then
+            print("[ResizableWindow] _getHandleAtPoint: Handle '" .. handleName .. "' container has no rect")
+            goto continue
+        end
+        
+        print("[ResizableWindow] _getHandleAtPoint: Handle '" .. handleName .. "' rect: (" .. 
+            rect.lower.x .. ", " .. rect.lower.y .. ") to (" .. rect.upper.x .. ", " .. rect.upper.y .. ")")
+        
         if point.x >= rect.lower.x and point.x <= rect.upper.x and 
            point.y >= rect.lower.y and point.y <= rect.upper.y then
+            print("[ResizableWindow] _getHandleAtPoint: HIT! Handle '" .. handleName .. "' clicked")
             return handleName
+        else
+            print("[ResizableWindow] _getHandleAtPoint: MISS for handle '" .. handleName .. "'")
         end
+        
+        ::continue::
     end
+    
+    print("[ResizableWindow] _getHandleAtPoint: No handle hit")
     return nil
 end
 
@@ -580,6 +606,8 @@ end
 -- @tparam string handleName - Name of the handle being dragged
 -- @tparam vec2 mousePos - Current mouse position
 function ResizableWindow:_startResize(handleName, mousePos)
+    print("[ResizableWindow] _startResize: Starting resize with handle '" .. handleName .. "' at (" .. mousePos.x .. ", " .. mousePos.y .. ")")
+    
     -- Validate window rect is accessible before starting resize
     local windowRect = self:_getSafeRect()
     if not windowRect then
@@ -587,10 +615,15 @@ function ResizableWindow:_startResize(handleName, mousePos)
         return
     end
     
+    print("[ResizableWindow] _startResize: Window rect available: " .. tostring(windowRect.lower) .. " to " .. tostring(windowRect.upper))
+    
     -- Capture mouse to prevent loss of focus
     if Mouse and Mouse.capture then
+        print("[ResizableWindow] _startResize: Capturing mouse")
         Mouse.capture(true)
         resizeState.mouseCaptured = true
+    else
+        print("[ResizableWindow] _startResize: Mouse capture not available")
     end
     
     resizeState.active = true
@@ -604,16 +637,28 @@ function ResizableWindow:_startResize(handleName, mousePos)
     resizeState.previewSize = self._tabbedWindow.size
     resizeState.previewPos = self._tabbedWindow.position
     
+    print("[ResizableWindow] _startResize: Resize state initialized - mode: " .. resizeState.mode)
+    print("[ResizableWindow] _startResize: Start size: " .. tostring(resizeState.startSize))
+    print("[ResizableWindow] _startResize: Start position: " .. tostring(resizeState.startWindowPos))
+    
     -- Mark handle as active and update visual state
     if self._resizeHandles[handleName] then
+        print("[ResizableWindow] _startResize: Marking handle '" .. handleName .. "' as active")
         self._resizeHandles[handleName].active = true
         self:_updateHandleVisuals(handleName, "active")
+    else
+        print("[ResizableWindow] _startResize: ERROR - Handle '" .. handleName .. "' not found in resize handles")
     end
     
     -- Show preview outline if enabled
     if self._config.showPreview and self._preview.outline then
+        print("[ResizableWindow] _startResize: Showing preview outline")
         self:_showPreviewOutline(true)
+    else
+        print("[ResizableWindow] _startResize: Preview outline disabled or unavailable")
     end
+    
+    print("[ResizableWindow] _startResize: Resize operation started successfully")
 end
 
 --- Update resize operation with performance optimization and visual feedback
@@ -936,7 +981,12 @@ end
 
 -- Global mouse event handlers with enhanced robustness
 function onMousePressed(x, y, button)
-    if button ~= 1 then return end -- Only handle left mouse button
+    print("[ResizableWindow] onMousePressed: button=" .. button .. " at (" .. x .. ", " .. y .. ")")
+    
+    if button ~= 1 then 
+        print("[ResizableWindow] onMousePressed: Not left mouse button, ignoring")
+        return false -- Only handle left mouse button
+    end
     
     local mousePos = vec2(x, y)
     print("[ResizableWindow] onMousePressed: " .. #resizableWindows .. " windows registered")
@@ -944,25 +994,32 @@ function onMousePressed(x, y, button)
     -- Handle potential mouse capture loss from previous operations
     for _, window in ipairs(resizableWindows) do
         if resizeState.active and resizeState.window == window then
+            print("[ResizableWindow] onMousePressed: Cleaning up previous mouse capture loss")
             window:_handleMouseCaptureLoss()
             break
         end
     end
     
     -- Check for resize handle clicks (prioritize frontmost windows)
+    print("[ResizableWindow] onMousePressed: Checking " .. #resizableWindows .. " windows for handle hits")
     for i = #resizableWindows, 1, -1 do
         local window = resizableWindows[i]
+        print("[ResizableWindow] onMousePressed: Checking window " .. i .. ", resizable=" .. tostring(window._config.resizable))
+        
         if window._config.resizable then
             local handle = window:_getHandleAtPoint(mousePos)
-            print("[ResizableWindow] Window " .. i .. " handle check: " .. tostring(handle))
+            print("[ResizableWindow] onMousePressed: Window " .. i .. " handle check result: " .. tostring(handle))
             if handle then
-                print("[ResizableWindow] Starting resize with handle: " .. handle)
+                print("[ResizableWindow] onMousePressed: SUCCESS - Starting resize with handle: " .. handle)
                 window:_startResize(handle, mousePos)
                 return true -- Indicate event was handled
             end
+        else
+            print("[ResizableWindow] onMousePressed: Skipping non-resizable window " .. i)
         end
     end
     
+    print("[ResizableWindow] onMousePressed: No handles hit, returning false")
     return false
 end
 
@@ -1107,7 +1164,15 @@ end
 -- @treturn boolean - True if event was handled, false otherwise
 function ResizableWindow.handleGlobalMousePressed(x, y, button)
     print("[ResizableWindow] Global mouse pressed at (" .. x .. ", " .. y .. ") button " .. button)
-    return onMousePressed(x, y, button)
+    print("[ResizableWindow] Number of registered windows: " .. #resizableWindows)
+    for i, window in ipairs(resizableWindows) do
+        print("[ResizableWindow] Window " .. i .. " config.resizable: " .. tostring(window._config.resizable))
+        print("[ResizableWindow] Window " .. i .. " handle count: " .. window:_getHandleCount())
+    end
+    
+    local result = onMousePressed(x, y, button)
+    print("[ResizableWindow] Global handler result: " .. tostring(result))
+    return result
 end
 
 --- Global mouse move handler to be called from script's onMouseMove
