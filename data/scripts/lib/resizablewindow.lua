@@ -252,9 +252,14 @@ function ResizableWindow.new(namespace, parent, rect, options)
 
     -- Immediate synchronous initialization following AzimuthLib pattern
     if instance._config.resizable then
+        print("[ResizableWindow] Initializing resizable window with " .. instance:_getHandleCount() .. " handles")
         instance:_initializeResizeHandles()
         instance:_initializePreviewSystem()
         instance:_registerForMouseEvents()
+        print("[ResizableWindow] Resizable window initialization complete. Handles created: " .. instance:_getHandleCount())
+        print("[ResizableWindow] showHandles config: " .. tostring(instance._config.showHandles))
+    else
+        print("[ResizableWindow] Creating non-resizable window")
     end
 
     return instance
@@ -479,43 +484,61 @@ end
 
 --- Check if a point is within any resize handle
 -- @tparam vec2 point - Point to test
+-- @tparam boolean isClick - If true, this is for a click (enable detailed logging). If false, this is for hover (minimal logging)
 -- @treturn string|nil - Handle name if point is within a handle, nil otherwise
-function ResizableWindow:_getHandleAtPoint(point)
+function ResizableWindow:_getHandleAtPoint(point, isClick)
     if not self._config.resizable then 
-        print("[ResizableWindow] _getHandleAtPoint: Window not resizable")
+        if isClick then
+            print("[ResizableWindow] _getHandleAtPoint: Window not resizable")
+        end
         return nil 
     end
     
-    print("[ResizableWindow] _getHandleAtPoint: Testing point (" .. point.x .. ", " .. point.y .. ")")
-    print("[ResizableWindow] _getHandleAtPoint: Number of handles: " .. self:_getHandleCount())
+    -- Only log detailed information for clicks, not hover
+    if isClick then
+        print("[ResizableWindow] _getHandleAtPoint: CLICK DETECTION at (" .. point.x .. ", " .. point.y .. ")")
+        print("[ResizableWindow] _getHandleAtPoint: Number of handles: " .. self:_getHandleCount())
+    end
     
     for handleName, handle in pairs(self._resizeHandles) do
         if not handle or not handle.container then
-            print("[ResizableWindow] _getHandleAtPoint: Handle '" .. handleName .. "' missing container")
+            if isClick then
+                print("[ResizableWindow] _getHandleAtPoint: Handle '" .. handleName .. "' missing container")
+            end
             goto continue
         end
         
         local rect = handle.container.rect
         if not rect then
-            print("[ResizableWindow] _getHandleAtPoint: Handle '" .. handleName .. "' container has no rect")
+            if isClick then
+                print("[ResizableWindow] _getHandleAtPoint: Handle '" .. handleName .. "' container has no rect")
+            end
             goto continue
         end
         
-        print("[ResizableWindow] _getHandleAtPoint: Handle '" .. handleName .. "' rect: (" .. 
-            rect.lower.x .. ", " .. rect.lower.y .. ") to (" .. rect.upper.x .. ", " .. rect.upper.y .. ")")
+        if isClick then
+            print("[ResizableWindow] _getHandleAtPoint: Handle '" .. handleName .. "' rect: (" .. 
+                rect.lower.x .. ", " .. rect.lower.y .. ") to (" .. rect.upper.x .. ", " .. rect.upper.y .. ")")
+        end
         
         if point.x >= rect.lower.x and point.x <= rect.upper.x and 
            point.y >= rect.lower.y and point.y <= rect.upper.y then
-            print("[ResizableWindow] _getHandleAtPoint: HIT! Handle '" .. handleName .. "' clicked")
+            if isClick then
+                print("[ResizableWindow] _getHandleAtPoint: HIT! Handle '" .. handleName .. "' CLICKED")
+            end
             return handleName
         else
-            print("[ResizableWindow] _getHandleAtPoint: MISS for handle '" .. handleName .. "'")
+            if isClick then
+                print("[ResizableWindow] _getHandleAtPoint: MISS for handle '" .. handleName .. "'")
+            end
         end
         
         ::continue::
     end
     
-    print("[ResizableWindow] _getHandleAtPoint: No handle hit")
+    if isClick then
+        print("[ResizableWindow] _getHandleAtPoint: No handle hit for click")
+    end
     return nil
 end
 
@@ -979,141 +1002,28 @@ ResizableWindow.__newindex = function(self, key, value)
     end
 end
 
--- Global mouse event handlers with enhanced robustness
+-- NOTE: Global mouse event handlers (onMousePressed, onMouseMove, onMouseReleased) are NOT supported
+-- in Player UI scripts. Player UI scripts must use onMouseEvent(key, pressed, x, y) and Mouse().position polling.
+-- These functions are kept for compatibility with non-player-UI scripts but will not work in player UI context.
+
+-- Global onMousePressed - NOT supported in Player UI scripts  
 function onMousePressed(x, y, button)
-    print("[ResizableWindow] onMousePressed: button=" .. button .. " at (" .. x .. ", " .. y .. ")")
-    
-    if button ~= 1 then 
-        print("[ResizableWindow] onMousePressed: Not left mouse button, ignoring")
-        return false -- Only handle left mouse button
-    end
-    
-    local mousePos = vec2(x, y)
-    print("[ResizableWindow] onMousePressed: " .. #resizableWindows .. " windows registered")
-    
-    -- Handle potential mouse capture loss from previous operations
-    for _, window in ipairs(resizableWindows) do
-        if resizeState.active and resizeState.window == window then
-            print("[ResizableWindow] onMousePressed: Cleaning up previous mouse capture loss")
-            window:_handleMouseCaptureLoss()
-            break
-        end
-    end
-    
-    -- Check for resize handle clicks (prioritize frontmost windows)
-    print("[ResizableWindow] onMousePressed: Checking " .. #resizableWindows .. " windows for handle hits")
-    for i = #resizableWindows, 1, -1 do
-        local window = resizableWindows[i]
-        print("[ResizableWindow] onMousePressed: Checking window " .. i .. ", resizable=" .. tostring(window._config.resizable))
-        
-        if window._config.resizable then
-            local handle = window:_getHandleAtPoint(mousePos)
-            print("[ResizableWindow] onMousePressed: Window " .. i .. " handle check result: " .. tostring(handle))
-            if handle then
-                print("[ResizableWindow] onMousePressed: SUCCESS - Starting resize with handle: " .. handle)
-                window:_startResize(handle, mousePos)
-                return true -- Indicate event was handled
-            end
-        else
-            print("[ResizableWindow] onMousePressed: Skipping non-resizable window " .. i)
-        end
-    end
-    
-    print("[ResizableWindow] onMousePressed: No handles hit, returning false")
+    -- This function will not be called in Player UI scripts
+    -- Mouse presses are handled via onMouseEvent(key, pressed=true, x, y)
     return false
 end
 
+-- Global onMouseMove - NOT supported in Player UI scripts
 function onMouseMove(x, y)
-    local mousePos = vec2(x, y)
-    local currentTime = appTime()
-    
-    -- Handle active resize with throttling
-    if resizeState.active and resizeState.window then
-        -- Additional safety check for rapid mouse movements
-        local timeSinceLastUpdate = currentTime - (resizeState.lastUpdateTime or 0)
-        if timeSinceLastUpdate >= PerformanceConfig.debounceTime then
-            resizeState.window:_updateResize(mousePos)
-        end
-        return true -- Event handled
-    end
-    
-    -- Handle hover effects with performance optimization
-    local anyHoverChanged = false
-    
-    -- Process windows in reverse order (frontmost first)
-    for i = #resizableWindows, 1, -1 do
-        local window = resizableWindows[i]
-        if window._config.resizable then
-            local handle = window:_getHandleAtPoint(mousePos)
-            
-            -- Update hover state for all handles with enhanced visual feedback
-            for handleName, handleData in pairs(window._resizeHandles) do
-                local wasHovered = handleData.hovered
-                local shouldHover = (handleName == handle)
-                
-                if shouldHover ~= wasHovered then
-                    anyHoverChanged = true
-                    
-                    -- Update visual state with smooth transitions
-                    if shouldHover then
-                        window:_updateHandleVisuals(handleName, "hover")
-                        -- Set cursor for resize direction if supported
-                        if handleData.definition.cursor then
-                            -- Could add cursor changing here if supported by Avorion
-                        end
-                    else
-                        window:_updateHandleVisuals(handleName, "default")
-                    end
-                end
-            end
-            
-            -- If we found a handle, we're done (don't check windows behind this one)
-            if handle then
-                break
-            end
-        end
-    end
-    
-    return anyHoverChanged
+    -- This function will not be called in Player UI scripts
+    -- Mouse movement is handled via Mouse().position polling in handlePlayerUIUpdate
+    return false
 end
 
+-- Global onMouseReleased - NOT supported in Player UI scripts
 function onMouseReleased(x, y, button)
-    if button ~= 1 then return end -- Only handle left mouse button
-    
-    -- Handle resize completion with safety checks
-    if resizeState.active and resizeState.window then
-        local window = resizeState.window
-        
-        -- Ensure window still exists and is valid
-        local stillValid = false
-        for _, w in ipairs(resizableWindows) do
-            if w == window then
-                stillValid = true
-                break
-            end
-        end
-        
-        if stillValid then
-            window:_finishResize()
-        else
-            -- Window was destroyed during resize, clean up state
-            resizeState.active = false
-            resizeState.window = nil
-            resizeState.handle = nil
-            resizeState.startPos = nil
-            resizeState.startSize = nil
-            resizeState.startWindowPos = nil
-            resizeState.mode = "idle"
-            
-            if resizeState.mouseCaptured and Mouse and Mouse.capture then
-                Mouse.capture(false)
-                resizeState.mouseCaptured = false
-            end
-        end
-        
-        return true -- Event handled
-    end
-    
+    -- This function will not be called in Player UI scripts
+    -- Mouse releases are handled via onMouseEvent(key, pressed=false, x, y)
     return false
 end
 
@@ -1157,39 +1067,245 @@ end
 -- Global mouse event handlers that can be called from script global functions
 -- These provide the bridge between Avorion's global mouse system and ResizableWindow instances
 
---- Global mouse pressed handler to be called from script's onMousePressed
--- @tparam number x - Mouse X coordinate
--- @tparam number y - Mouse Y coordinate  
--- @tparam number button - Mouse button (1 = left, 2 = right, etc.)
--- @treturn boolean - True if event was handled, false otherwise
+--- DEPRECATED: Global mouse handlers - These are NOT supported in Player UI scripts
+-- Player UI scripts must use handlePlayerUIMouseEvent and handlePlayerUIUpdate instead
+-- These functions are provided for backward compatibility with non-player-UI scripts only
+
 function ResizableWindow.handleGlobalMousePressed(x, y, button)
-    print("[ResizableWindow] Global mouse pressed at (" .. x .. ", " .. y .. ") button " .. button)
+    print("[ResizableWindow] WARNING: handleGlobalMousePressed called - not supported in Player UI scripts")
+    return false
+end
+
+function ResizableWindow.handleGlobalMouseMove(x, y)
+    print("[ResizableWindow] WARNING: handleGlobalMouseMove called - not supported in Player UI scripts") 
+    return false
+end
+
+function ResizableWindow.handleGlobalMouseReleased(x, y, button)
+    print("[ResizableWindow] WARNING: handleGlobalMouseReleased called - not supported in Player UI scripts")
+    return false
+end
+
+--- Player UI mouse event handler to be called from script's onMouseEvent
+-- Handles the onMouseEvent(key, pressed, x, y) pattern used by player UI scripts
+-- @tparam number key - Mouse button (1 = left, 2 = right, etc.)
+-- @tparam boolean pressed - True if pressed, false if released
+-- @tparam number x - Mouse X coordinate
+-- @tparam number y - Mouse Y coordinate
+-- @treturn boolean - True if event was handled, false otherwise
+function ResizableWindow.handlePlayerUIMouseEvent(key, pressed, x, y)
+    print("[ResizableWindow] Player UI mouse event: key=" .. tostring(key) .. ", pressed=" .. tostring(pressed) .. ", pos=(" .. tostring(x) .. ", " .. tostring(y) .. ")")
     print("[ResizableWindow] Number of registered windows: " .. #resizableWindows)
-    for i, window in ipairs(resizableWindows) do
-        print("[ResizableWindow] Window " .. i .. " config.resizable: " .. tostring(window._config.resizable))
-        print("[ResizableWindow] Window " .. i .. " handle count: " .. window:_getHandleCount())
+    
+    -- Validate input parameters
+    if not key or not x or not y then
+        print("[ResizableWindow] ERROR: Invalid mouse event parameters")
+        return false
     end
     
-    local result = onMousePressed(x, y, button)
-    print("[ResizableWindow] Global handler result: " .. tostring(result))
-    return result
+    -- Convert to the internal mouse event format
+    if pressed then
+        -- Mouse pressed - only handle left mouse button
+        if key == 1 then
+            print("[ResizableWindow] Processing left mouse button press")
+            return ResizableWindow._handleMousePressed(x, y, key)
+        else
+            print("[ResizableWindow] Ignoring non-left mouse button press: " .. key)
+        end
+    else
+        -- Mouse released
+        if key == 1 then
+            print("[ResizableWindow] Processing left mouse button release")
+            return ResizableWindow._handleMouseReleased(x, y, key)
+        else
+            print("[ResizableWindow] Ignoring non-left mouse button release: " .. key)
+        end
+    end
+    
+    return false
 end
 
---- Global mouse move handler to be called from script's onMouseMove
--- @tparam number x - Mouse X coordinate
--- @tparam number y - Mouse Y coordinate
--- @treturn boolean - True if event was handled, false otherwise
-function ResizableWindow.handleGlobalMouseMove(x, y)
-    return onMouseMove(x, y)
+--- Player UI update handler to handle mouse movement during resize and hover
+-- Should be called from the script's updateClient function
+-- @tparam number timeStep - Time step from updateClient
+function ResizableWindow.handlePlayerUIUpdate(timeStep)
+    -- Get current mouse position
+    local mouse = Mouse()
+    if not mouse or not mouse.position then
+        -- Only print this error occasionally to avoid spam
+        if not ResizableWindow._lastMouseError or (os.clock() - ResizableWindow._lastMouseError) > 5 then
+            print("[ResizableWindow] handlePlayerUIUpdate: Mouse or mouse.position not available")
+            ResizableWindow._lastMouseError = os.clock()
+        end
+        return
+    end
+    
+    local mousePos = mouse.position
+    -- Note: Minimal logging since this is called every frame
+    
+    -- Handle active resize operation
+    if resizeState.active and resizeState.window then
+        print("[ResizableWindow] handlePlayerUIUpdate: Processing active resize")
+        local window = resizeState.window
+        
+        -- Ensure window still exists and is valid
+        local stillValid = false
+        for _, w in ipairs(resizableWindows) do
+            if w == window then
+                stillValid = true
+                break
+            end
+        end
+        
+        if stillValid then
+            window:_updateResize(mousePos)
+        else
+            -- Window was destroyed during resize, clean up state
+            print("[ResizableWindow] handlePlayerUIUpdate: Window destroyed during resize, cleaning up")
+            resizeState.active = false
+            resizeState.window = nil
+            resizeState.handle = nil
+            resizeState.startSize = nil
+            resizeState.startWindowPos = nil
+            resizeState.startPos = nil
+        end
+        return
+    end
+    
+    -- Handle hover effects when not actively resizing
+    -- Throttle hover detection to reduce performance impact
+    ResizableWindow._hoverUpdateTimer = (ResizableWindow._hoverUpdateTimer or 0) + timeStep
+    if ResizableWindow._hoverUpdateTimer < 0.05 then -- Update hover at most 20 times per second
+        return
+    end
+    ResizableWindow._hoverUpdateTimer = 0
+    
+    local anyHoverChanged = false
+    
+    -- Process windows in reverse order (frontmost first)
+    for i = #resizableWindows, 1, -1 do
+        local window = resizableWindows[i]
+        if window._config.resizable then
+            -- FIXED: Pass false for isClick parameter to suppress logging during hover
+            local handle = window:_getHandleAtPoint(mousePos, false)
+            -- Only log when handle state changes to reduce spam
+            
+            -- Update hover state for all handles
+            for handleName, handleData in pairs(window._resizeHandles) do
+                local wasHovered = handleData.hovered
+                local shouldHover = (handleName == handle)
+                
+                if shouldHover ~= wasHovered then
+                    anyHoverChanged = true
+                    -- Reduced logging: Only log hover changes in debug mode or for significant changes
+                    if shouldHover then
+                        -- Only log when starting to hover (entering handle)
+                        print("[ResizableWindow] Handle '" .. handleName .. "' HOVER START")
+                        window:_updateHandleVisuals(handleName, "hover")
+                    else
+                        -- Don't log when stopping hover to reduce spam
+                        window:_updateHandleVisuals(handleName, "default")
+                    end
+                    
+                    -- Update handle state
+                    handleData.hovered = shouldHover
+                end
+            end
+            
+            -- If we found a handle, we're done (don't check windows behind this one)
+            if handle then
+                break
+            end
+        end
+    end
+    
+    -- Removed hover state change logging to reduce spam
+    -- if anyHoverChanged then
+    --     print("[ResizableWindow] handlePlayerUIUpdate: Hover states updated")
+    -- end
 end
 
---- Global mouse released handler to be called from script's onMouseReleased
+--- Internal mouse pressed handler that directly processes resize logic
 -- @tparam number x - Mouse X coordinate
 -- @tparam number y - Mouse Y coordinate
 -- @tparam number button - Mouse button (1 = left, 2 = right, etc.)
 -- @treturn boolean - True if event was handled, false otherwise
-function ResizableWindow.handleGlobalMouseReleased(x, y, button)
-    return onMouseReleased(x, y, button)
+function ResizableWindow._handleMousePressed(x, y, button)
+    print("[ResizableWindow] _handleMousePressed: button=" .. button .. " at (" .. x .. ", " .. y .. ")")
+    
+    if button ~= 1 then 
+        print("[ResizableWindow] _handleMousePressed: Not left mouse button, ignoring")
+        return false -- Only handle left mouse button
+    end
+    
+    local mousePos = vec2(x, y)
+    print("[ResizableWindow] _handleMousePressed: " .. #resizableWindows .. " windows registered")
+    
+    -- Handle potential mouse capture loss from previous operations
+    for _, window in ipairs(resizableWindows) do
+        if resizeState.active and resizeState.window == window then
+            print("[ResizableWindow] _handleMousePressed: Cleaning up previous mouse capture loss")
+            window:_handleMouseCaptureLoss()
+            break
+        end
+    end
+    
+    -- Check for resize handle clicks (prioritize frontmost windows)
+    for i = #resizableWindows, 1, -1 do
+        local window = resizableWindows[i]
+        if window._config.resizable then
+            -- FIXED: Pass true for isClick parameter to enable detailed logging for actual clicks
+            local handleHit = window:_getHandleAtPoint(mousePos, true)
+            if handleHit then
+                print("[ResizableWindow] _handleMousePressed: Handle hit on window " .. i .. ", handle: " .. handleHit)
+                window:_startResize(handleHit, mousePos)
+                return true -- Event handled
+            end
+        end
+    end
+    
+    return false -- Event not handled
+end
+
+--- Internal mouse released handler that directly processes resize logic
+-- @tparam number x - Mouse X coordinate
+-- @tparam number y - Mouse Y coordinate
+-- @tparam number button - Mouse button (1 = left, 2 = right, etc.)
+-- @treturn boolean - True if event was handled, false otherwise
+function ResizableWindow._handleMouseReleased(x, y, button)
+    print("[ResizableWindow] _handleMouseReleased: button=" .. button .. " at (" .. x .. ", " .. y .. ")")
+    
+    if button ~= 1 then return false end -- Only handle left mouse button
+    
+    -- Handle resize completion with safety checks
+    if resizeState.active and resizeState.window then
+        local window = resizeState.window
+        
+        -- Ensure window still exists and is valid
+        local stillValid = false
+        for _, w in ipairs(resizableWindows) do
+            if w == window then
+                stillValid = true
+                break
+            end
+        end
+        
+        if stillValid then
+            print("[ResizableWindow] _handleMouseReleased: Finishing resize on valid window")
+            window:_finishResize()
+        else
+            -- Window was destroyed during resize, clean up state
+            print("[ResizableWindow] _handleMouseReleased: Window destroyed during resize, cleaning up")
+            resizeState.active = false
+            resizeState.window = nil
+            resizeState.handle = nil
+            resizeState.originalRect = nil
+            resizeState.startPos = nil
+        end
+        return true -- Event handled
+    end
+    
+    return false -- Event not handled  
 end
 
 --- Factory function following AzimuthLib pattern
@@ -1200,5 +1316,7 @@ end
 return setmetatable({new = new, 
     handleGlobalMousePressed = ResizableWindow.handleGlobalMousePressed,
     handleGlobalMouseMove = ResizableWindow.handleGlobalMouseMove,
-    handleGlobalMouseReleased = ResizableWindow.handleGlobalMouseReleased
+    handleGlobalMouseReleased = ResizableWindow.handleGlobalMouseReleased,
+    handlePlayerUIMouseEvent = ResizableWindow.handlePlayerUIMouseEvent,
+    handlePlayerUIUpdate = ResizableWindow.handlePlayerUIUpdate
 }, {__call = function(_, ...) return new(...) end})

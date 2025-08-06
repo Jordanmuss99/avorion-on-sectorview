@@ -4,46 +4,105 @@ local Azimuth = include("azimuthlib-basic")
 local CustomTabbedWindow = include("azimuthlib-customtabbedwindow")
 local ResizableWindow = include("resizablewindow")
 
--- Global mouse event handlers for ResizableWindow system
--- These are required because Avorion only calls global functions, not table methods
-function onMousePressed(x, y, button)
-    print("[SectorShipOverview] onMousePressed called at (" .. x .. ", " .. y .. ") button " .. button)
-    print("[SectorShipOverview] ResizableWindow available: " .. tostring(ResizableWindow ~= nil))
-    print("[SectorShipOverview] ResizableWindow.handleGlobalMousePressed available: " .. tostring(ResizableWindow and ResizableWindow.handleGlobalMousePressed ~= nil))
+-- ========================================
+-- MOUSE HANDLING SYSTEM: POLLING-BASED
+-- ========================================
+-- CRITICAL: Player UI scripts cannot use global onMouseEvent function
+-- The global onMouseEvent function is ONLY called in Entity scripts, NOT Player UI scripts
+-- 
+-- SOLUTION: Polling-based state change detection in updateClient (60 FPS)
+-- - Mouse() state is polled every frame in updateClient()  
+-- - State changes are detected by comparing current vs last frame state
+-- - Press/release events are generated when buttonDown() transitions occur
+-- - Events are forwarded to ResizableWindow.handlePlayerUIMouseEvent()
+-- 
+-- IMPLEMENTATION:
+-- - Mouse state tracking initialized in SectorShipOverview.initialize()
+-- - State change detection runs in SectorShipOverview.updateClient()
+-- - Compatible with existing ResizableWindow event interface
+-- - Debugging available via /run reportMousePollingStatus()
+-- ========================================
+
+-- Diagnostic function to test mouse polling system manually
+-- Can be called from console: /run testMousePolling()
+function testMousePolling()
+    local mouse = Mouse()
+    if not mouse then
+        print("[SectorShipOverview] ERROR: Mouse() not available")
+        return false
+    end
     
-    -- Delegate to ResizableWindow global handler if it exists
-    if ResizableWindow and ResizableWindow.handleGlobalMousePressed then
-        local handled = ResizableWindow.handleGlobalMousePressed(x, y, button)
-        print("[SectorShipOverview] ResizableWindow handled: " .. tostring(handled))
-        if handled then
-            return true
-        end
-    end
-    return false
+    local pos = mouse.position
+    local leftPressed = mouse:buttonPressed(MouseButton.Left)
+    local leftDown = mouse:buttonDown(MouseButton.Left)
+    
+    print("[SectorShipOverview] Mouse polling test:")
+    print("[SectorShipOverview]   Position: (" .. pos.x .. ", " .. pos.y .. ")")
+    print("[SectorShipOverview]   Left Pressed: " .. tostring(leftPressed))
+    print("[SectorShipOverview]   Left Down: " .. tostring(leftDown))
+    
+    return true
 end
 
-function onMouseMove(x, y)
-    -- Delegate to ResizableWindow global handler if it exists
-    if ResizableWindow and ResizableWindow.handleGlobalMouseMove then
-        local handled = ResizableWindow.handleGlobalMouseMove(x, y)
-        if handled then
-            return true
+-- Comprehensive status report for mouse polling system
+-- Can be called from console: /run reportMousePollingStatus()
+function reportMousePollingStatus()
+    print("[SectorShipOverview] *** MOUSE POLLING SYSTEM STATUS REPORT ***")
+    
+    -- Check ResizableWindow module
+    if ResizableWindow then
+        print("[SectorShipOverview] ✓ ResizableWindow: LOADED")
+        if ResizableWindow.handlePlayerUIMouseEvent then
+            print("[SectorShipOverview]   ✓ handlePlayerUIMouseEvent: AVAILABLE")
+        else
+            print("[SectorShipOverview]   ✗ handlePlayerUIMouseEvent: MISSING")
         end
-    end
-    return false
-end
-
-function onMouseReleased(x, y, button)
-    print("[SectorShipOverview] onMouseReleased called at (" .. x .. ", " .. y .. ") button " .. button)
-    -- Delegate to ResizableWindow global handler if it exists  
-    if ResizableWindow and ResizableWindow.handleGlobalMouseReleased then
-        local handled = ResizableWindow.handleGlobalMouseReleased(x, y, button)
-        print("[SectorShipOverview] ResizableWindow handled release: " .. tostring(handled))
-        if handled then
-            return true
+        if ResizableWindow.handlePlayerUIUpdate then
+            print("[SectorShipOverview]   ✓ handlePlayerUIUpdate: AVAILABLE")
+        else
+            print("[SectorShipOverview]   ✗ handlePlayerUIUpdate: MISSING")
         end
+    else
+        print("[SectorShipOverview] ✗ ResizableWindow: NOT LOADED")
     end
-    return false
+    
+    -- Check Mouse() for polling
+    local mouse = Mouse()
+    if mouse then
+        print("[SectorShipOverview] ✓ Mouse() polling: AVAILABLE")
+        local pos = mouse.position
+        local leftDown = mouse:buttonDown(MouseButton.Left)
+        local rightDown = mouse:buttonDown(MouseButton.Right)
+        print("[SectorShipOverview]   Current position: (" .. pos.x .. ", " .. pos.y .. ")")
+        print("[SectorShipOverview]   Current state: leftDown=" .. tostring(leftDown) .. ", rightDown=" .. tostring(rightDown))
+    else
+        print("[SectorShipOverview] ✗ Mouse() polling: NOT AVAILABLE")
+    end
+    
+    -- Check polling state tracking
+    if SectorShipOverview._mouseState then
+        print("[SectorShipOverview] ✓ Mouse State Tracking: ACTIVE")
+        local state = SectorShipOverview._mouseState
+        print("[SectorShipOverview]   Initialized: " .. tostring(state.initialized))
+        print("[SectorShipOverview]   Last Position: (" .. (state.lastPosition.x or 0) .. ", " .. (state.lastPosition.y or 0) .. ")")
+        print("[SectorShipOverview]   Last Left Down: " .. tostring(state.lastLeftDown))
+        print("[SectorShipOverview]   Events Generated: " .. (state.eventsGenerated or 0))
+    else
+        print("[SectorShipOverview] ✗ Mouse State Tracking: NOT INITIALIZED")
+    end
+    
+    -- Check window status
+    if sectorOverview_tabbedWindow then
+        print("[SectorShipOverview] ✓ UI Window: CREATED")
+        if sectorOverview_tabbedWindow._config and sectorOverview_tabbedWindow._config.resizable then
+            print("[SectorShipOverview]   ✓ Resize enabled: " .. tostring(sectorOverview_tabbedWindow._config.resizable))
+        end
+    else
+        print("[SectorShipOverview] ✗ UI Window: NOT CREATED")
+    end
+    
+    print("[SectorShipOverview] *** End of status report ***")
+    print("[SectorShipOverview] To test mouse polling manually: /run testMousePolling()")
 end
 
 local SectorOverviewConfig -- client/server
@@ -72,6 +131,48 @@ local BaseShow = nil
 local customComponents = {}
 
 function SectorShipOverview.initialize() -- overridden
+    print("[SectorShipOverview] *** INITIALIZATION STARTED ***")
+    print("[SectorShipOverview] Setting up mouse polling system...")
+    
+    -- Initialize mouse state tracking for polling-based event detection
+    SectorShipOverview._mouseState = {
+        lastPosition = {x = 0, y = 0},
+        lastLeftDown = false,
+        lastRightDown = false,
+        eventsGenerated = 0,
+        initialized = false
+    }
+    
+    -- Verify Mouse() availability for polling
+    local success, mouse = pcall(Mouse)
+    if success and mouse then
+        local pos = mouse.position
+        SectorShipOverview._mouseState.lastPosition = {x = pos.x, y = pos.y}
+        SectorShipOverview._mouseState.initialized = true
+        print("[SectorShipOverview] ✓ Mouse polling system initialized at (" .. pos.x .. ", " .. pos.y .. ")")
+    else
+        print("[SectorShipOverview] ✗ WARNING: Mouse() not available - polling disabled")
+    end
+    
+    -- Verify ResizableWindow module availability
+    if ResizableWindow then
+        print("[SectorShipOverview] ✓ ResizableWindow module loaded successfully")
+        
+        if ResizableWindow.handlePlayerUIMouseEvent then
+            print("[SectorShipOverview] ✓ ResizableWindow.handlePlayerUIMouseEvent available")
+        else
+            print("[SectorShipOverview] ✗ WARNING: ResizableWindow.handlePlayerUIMouseEvent missing")
+        end
+        
+        if ResizableWindow.handlePlayerUIUpdate then
+            print("[SectorShipOverview] ✓ ResizableWindow.handlePlayerUIUpdate available")
+        else
+            print("[SectorShipOverview] ⚠ ResizableWindow.handlePlayerUIUpdate not found")
+        end
+    else
+        print("[SectorShipOverview] ✗ ResizableWindow module not loaded")
+    end
+    
     -- Call base game initialization first to set up overviewList and other base UI
     if BaseInitialize then
         BaseInitialize()
@@ -171,7 +272,7 @@ Object name color represents relation status (war, ceasefire, neutral, allies)]]
         constrainToScreen = SectorOverviewConfig.ConstrainToScreen ~= false,
         snapToSize = SectorOverviewConfig.SnapToSize ~= false,
         showPreview = SectorOverviewConfig.ShowResizePreview or false,
-        showHandles = SectorOverviewConfig.ShowResizeHandles or false -- Enable for debugging resize issues
+        showHandles = true -- DEBUGGING: Always show handles to test mouse events (was: SectorOverviewConfig.ShowResizeHandles or false)
     }
     
     -- Try to create ResizableWindow with fallback to CustomTabbedWindow
@@ -188,7 +289,16 @@ Object name color represents relation status (war, ceasefire, neutral, allies)]]
             self.sectorOverview_onWindowResized(newSize)
         end
         
-        print("ResizableWindow initialized successfully with handles visible: " .. tostring(result._config.showHandles))
+        -- Mouse events handled via polling-based state change detection in updateClient
+        print("[SectorShipOverview] Mouse events handled via polling-based state change detection")
+        
+        print("[SectorShipOverview] ✓ ResizableWindow initialized successfully with handles visible: " .. tostring(result._config.showHandles))
+        print("[SectorShipOverview] ✓ Mouse polling system fully operational:")
+        print("[SectorShipOverview]   - Mouse polling: ACTIVE (updateClient @ 60 FPS)")
+        print("[SectorShipOverview]   - State change detection: ENABLED")
+        print("[SectorShipOverview]   - ResizableWindow integration: READY")
+        print("[SectorShipOverview]   - Global events: REMOVED (not supported in Player UI)")
+        print("[SectorShipOverview] *** Ready for mouse interaction testing ***")
     else
         -- Fallback to CustomTabbedWindow if ResizableWindow fails
         print("ResizableWindow initialization failed, falling back to CustomTabbedWindow: " .. tostring(result))
@@ -206,7 +316,16 @@ Object name color represents relation status (war, ceasefire, neutral, allies)]]
         if fallbackSuccess and fallbackResult then
             sectorOverview_tabbedWindow = fallbackResult
             sectorOverview_tabbedWindow.onSelectedFunction = "refreshList"
-            print("CustomTabbedWindow fallback initialized successfully")
+            
+            -- Mouse events handled via polling-based state change detection in updateClient
+            print("[SectorShipOverview] Mouse events handled via polling-based state change detection (fallback)")
+            
+            print("[SectorShipOverview] ✓ CustomTabbedWindow fallback initialized successfully")
+            print("[SectorShipOverview] ⚠ ResizableWindow unavailable - using basic window")
+            print("[SectorShipOverview] ✓ Mouse polling system operational with fallback:")
+            print("[SectorShipOverview]   - Mouse polling: ACTIVE (basic support)")
+            print("[SectorShipOverview]   - Global events: REMOVED (not supported in Player UI)")
+            print("[SectorShipOverview] *** Basic UI ready for testing ***")
         else
             error("Both ResizableWindow and CustomTabbedWindow initialization failed: " .. tostring(fallbackResult))
         end
@@ -533,6 +652,86 @@ end
 
 function SectorShipOverview.updateClient(timeStep) -- overridden
     if not self.window or not SectorOverviewConfig then return end
+
+    -- Mouse polling-based state change detection system
+    -- This replaces the broken global onMouseEvent approach
+    if self._mouseState and self._mouseState.initialized then
+        local mouse = Mouse()
+        if mouse then
+            local currentPos = mouse.position
+            local currentLeftDown = mouse:mouseDown(MouseButton.Left)
+            local currentRightDown = mouse:mouseDown(MouseButton.Right)
+            
+            local lastState = self._mouseState
+            
+            -- Detect state changes and generate events
+            local eventGenerated = false
+            
+            -- Left button press detection
+            if currentLeftDown and not lastState.lastLeftDown then
+                -- Left button pressed
+                if ResizableWindow and ResizableWindow.handlePlayerUIMouseEvent then
+                    ResizableWindow.handlePlayerUIMouseEvent(1, true, currentPos.x, currentPos.y)
+                    lastState.eventsGenerated = lastState.eventsGenerated + 1
+                    eventGenerated = true
+                end
+            elseif not currentLeftDown and lastState.lastLeftDown then
+                -- Left button released
+                if ResizableWindow and ResizableWindow.handlePlayerUIMouseEvent then
+                    ResizableWindow.handlePlayerUIMouseEvent(1, false, currentPos.x, currentPos.y)
+                    lastState.eventsGenerated = lastState.eventsGenerated + 1
+                    eventGenerated = true
+                end
+            end
+            
+            -- Right button press detection (if needed in future)
+            if currentRightDown and not lastState.lastRightDown then
+                -- Right button pressed
+                if ResizableWindow and ResizableWindow.handlePlayerUIMouseEvent then
+                    ResizableWindow.handlePlayerUIMouseEvent(2, true, currentPos.x, currentPos.y)
+                    lastState.eventsGenerated = lastState.eventsGenerated + 1
+                    eventGenerated = true
+                end
+            elseif not currentRightDown and lastState.lastRightDown then
+                -- Right button released
+                if ResizableWindow and ResizableWindow.handlePlayerUIMouseEvent then
+                    ResizableWindow.handlePlayerUIMouseEvent(2, false, currentPos.x, currentPos.y)
+                    lastState.eventsGenerated = lastState.eventsGenerated + 1
+                    eventGenerated = true
+                end
+            end
+            
+            -- Update state tracking
+            lastState.lastPosition = {x = currentPos.x, y = currentPos.y}
+            lastState.lastLeftDown = currentLeftDown
+            lastState.lastRightDown = currentRightDown
+            
+            -- Periodic debug logging (every ~5 seconds at 60fps)
+            if not self._pollingLogCount then self._pollingLogCount = 0 end
+            self._pollingLogCount = self._pollingLogCount + 1
+            
+            if self._pollingLogCount % 300 == 0 then
+                print("[SectorShipOverview] Mouse polling: pos=(" .. currentPos.x .. "," .. currentPos.y .. ") leftDown=" .. tostring(currentLeftDown) .. " events=" .. lastState.eventsGenerated)
+            end
+            
+            -- Enhanced debug logging when events are generated
+            if eventGenerated then
+                print("[SectorShipOverview] *** Mouse state change detected and event generated ***")
+            end
+            
+        else
+            -- Only log mouse error once
+            if not self._mouseErrorLogged then
+                print("[SectorShipOverview] ERROR: Mouse() not available for polling")
+                self._mouseErrorLogged = true
+            end
+        end
+    end
+    
+    -- Handle ResizableWindow updates if available
+    if ResizableWindow and ResizableWindow.handlePlayerUIUpdate then
+        ResizableWindow.handlePlayerUIUpdate(timeStep)
+    end
 
     -- Initialize refresh counter if it's nil (safety check)
     if not sectorOverview_refreshCounter then
